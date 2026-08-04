@@ -1,6 +1,6 @@
 npm init -y
 
-npm install express mysql2 dotenv cors helmet morgan bcrypt jsonwebtoken cookie-parser bcryptjs
+npm install express mysql2 dotenv cors helmet morgan bcrypt jsonwebtoken cookie-parser bcryptjs multer
 npm install nodemon --save-dev
 
 npm install joi dayjs uuid
