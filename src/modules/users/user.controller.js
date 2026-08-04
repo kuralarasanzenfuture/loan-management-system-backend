@@ -19,10 +19,42 @@ export const createUser = async (req, res, next) => {
 export const loginUser = async (req, res, next) => {
   try {
     const data = await loginSchema.validateAsync(req.body);
-    const result = await UserService.login(data, req, res);
-    res.json(result);
+
+    const result = await UserService.login(data, req);
+
+    const isProd = process.env.NODE_ENV === "production";
+
+    // 🍪 ACCESS TOKEN
+    res.cookie("access_token", result.access_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 15 * 60 * 1000, // 15 min
+    });
+
+    // 🍪 REFRESH TOKEN
+    res.cookie("refresh_token", result.refresh_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: REFRESH_EXP_DAYS * 24 * 60 * 60 * 1000,
+    });
+
+    // 🍪 SESSION ID
+    res.cookie("session_id", result.session_id, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+    });
+
+    // 🔥 RESPONSE (also send tokens for mobile/API use)
+    res.json({
+      success: true,
+      message: "Login successful",
+      ...result,
+    });
   } catch (e) {
-   next(e);
+    next(e);
   }
 };
 
