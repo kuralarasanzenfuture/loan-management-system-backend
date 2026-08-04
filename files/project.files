@@ -1,0 +1,12 @@
+npm init -y
+
+npm install express mysql2 dotenv cors helmet morgan bcrypt jsonwebtoken cookie-parser bcryptjs
+npm install nodemon --save-dev
+
+npm install joi dayjs uuid
+
+npm install winston or npm install pino -> Alternative to winston (faster logging)
+
+npm install express-rate-limit xss-clean
+
+npm install node-cron
