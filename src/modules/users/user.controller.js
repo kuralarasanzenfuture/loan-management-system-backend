@@ -81,8 +81,10 @@ export const refreshToken = async (req, res, next) => {
     const body = req.body || {};
     const cookies = req.cookies || {};
 
-    const refresh_token = body.refresh_token || cookies.refresh_token;
-    const session_id = body.session_id || cookies.session_id;
+    const refresh_token =
+      body.refresh_token || body.refreshToken || cookies.refresh_token;
+    const session_id =
+      body.session_id || body.sessionId || cookies.session_id;
 
     if (!refresh_token || !session_id) {
       throw { status: 400, message: "Missing token or session" };
