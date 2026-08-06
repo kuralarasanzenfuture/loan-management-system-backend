@@ -36,21 +36,70 @@ export const CustomerDocumentService = {
   /**
    * Get all documents for a customer.
    */
+  // async getByCustomerId(customerId) {
+  //   const db = getDB();
+
+  //   const [rows] = await db.query(
+  //     `
+  //     SELECT id, document_type, document_number, file_name, verified, uploaded_at
+  //     FROM customer_documents
+  //     WHERE customer_id = ?
+  //     ORDER BY uploaded_at DESC
+  //     `,
+  //     [customerId],
+  //   );
+
+  //   return rows;
+  // },
+  /*=================================================*/
   async getByCustomerId(customerId) {
     const db = getDB();
 
     const [rows] = await db.query(
       `
-      SELECT id, document_type, document_number, file_name, verified, uploaded_at
-      FROM customer_documents
-      WHERE customer_id = ?
-      ORDER BY uploaded_at DESC
-      `,
+    SELECT id, document_type, document_number, file_name, verified, uploaded_at
+    FROM customer_documents
+    WHERE customer_id = ?
+    ORDER BY uploaded_at DESC
+    `,
       [customerId],
     );
 
-    return rows;
+    // Map through each document row to attach the full URL to file_name
+    return rows.map((doc) => ({
+      ...doc,
+      file_name: getImageUrl(doc.file_name),
+    }));
   },
+
+  /* =========================*/
+
+  // async getByCustomerId(customerId) {
+  //   const db = getDB();
+  //   const baseUrl = process.env.BASE_URL || "http://localhost:5000/";
+
+  //   const [rows] = await db.query(
+  //     `
+  //   SELECT
+  //     id,
+  //     document_type,
+  //     document_number,
+  //     IF(
+  //       file_name LIKE 'http%',
+  //       file_name,
+  //       CONCAT(?, LTRIM(file_name))
+  //     ) AS file_name,
+  //     verified,
+  //     uploaded_at
+  //   FROM customer_documents
+  //   WHERE customer_id = ?
+  //   ORDER BY uploaded_at DESC
+  //   `,
+  //     [baseUrl, customerId],
+  //   );
+
+  //   return rows;
+  // },
 
   /**
    * Get a single document by id.

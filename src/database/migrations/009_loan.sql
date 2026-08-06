@@ -1,0 +1,27 @@
+CREATE TABLE
+    IF NOT EXISTS loans (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        loan_no VARCHAR(50),
+        customer_id BIGINT NOT NULL,
+        loan_plan_id BIGINT NOT NULL,
+        loan_amount DECIMAL(12, 2) NOT NULL,
+        commission_amount DECIMAL(12, 2) NOT NULL,
+        net_disbursed_amount DECIMAL(12, 2) NOT NULL,
+        installment_amount DECIMAL(12, 2) NOT NULL,
+        total_repayment DECIMAL(12, 2) NOT NULL,
+        start_date DATE,
+        end_date DATE,
+        created_by BIGINT NOT NULL,
+        updated_by BIGINT NOT NULL,
+        status ENUM ('active', 'completed', 'closed', 'default') DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers (id),
+        FOREIGN KEY (loan_plan_id) REFERENCES loan_plans (id),
+        FOREIGN KEY (created_by) REFERENCES users (id),
+        FOREIGN KEY (updated_by) REFERENCES users (id),
+        UNIQUE KEY unique_loan_no (loan_no),
+        INDEX idx_customer_id (customer_id),
+        INDEX idx_loan_plan_id (loan_plan_id),
+        INDEX idx_status (status)
+    );

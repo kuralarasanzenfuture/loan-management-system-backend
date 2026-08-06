@@ -1,6 +1,8 @@
 import { initDB } from "../config/db.js";
 import { seedRoles } from "./seeds/seedRoles.js";
 import { seedUsers } from "./seeds/seedUsers.js";
+import { SeedCustomers } from "./seeds/seedCustomers.js";
+import { SeedLoanPlans } from "./seeds/SeedLoanPlans.js";
 
 const runSeeds = async () => {
   try {
@@ -12,6 +14,10 @@ const runSeeds = async () => {
     await seedRoles();
 
     await seedUsers();
+    
+    await SeedCustomers();
+    
+    await SeedLoanPlans();
 
     console.log("✅ Seeding completed");
   } catch (err) {

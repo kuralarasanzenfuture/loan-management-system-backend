@@ -24,13 +24,21 @@ export const RoleService = {
     }
 
     if (role.is_system) {
-      throw { status: 403, message: "System role cannot be modified" };
+      throw {
+        status: 403,
+        message: "System role cannot be modified",
+      };
     }
 
     if (data.name) {
       const existing = await RoleModel.findByName(data.name);
-      if (existing && existing.id !== id) {
-        throw { status: 400, message: "Role name already exists" };
+
+      // ✅ FIX: force number comparison
+      if (existing && Number(existing.id) !== Number(id)) {
+        throw {
+          status: 400,
+          message: "Role name already exists",
+        };
       }
     }
 

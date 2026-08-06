@@ -1,4 +1,5 @@
 import { getDB } from "../../config/db.js";
+import { getImageUrl } from "../../utils/imageUrl.js";
 
 export const CustomerModel = {
   async create(conn, data) {
@@ -65,18 +66,36 @@ VALUES
     return result.insertId;
   },
 
+  //   async findAll() {
+  //     const db = getDB();
+
+  //     const [rows] = await db.query(
+  //       `
+  // SELECT *
+  // FROM customers
+  // ORDER BY id DESC
+  // `,
+  //     );
+
+  //     return rows;
+  //   },
+
   async findAll() {
     const db = getDB();
 
     const [rows] = await db.query(
       `
-SELECT *
-FROM customers
-ORDER BY id DESC
-`,
+    SELECT *
+    FROM customers
+    ORDER BY id DESC
+    `,
     );
 
-    return rows;
+    // Transform photo paths into full URLs globally for all rows
+    return rows.map((customer) => ({
+      ...customer,
+      photo: getImageUrl(customer.photo),
+    }));
   },
 
   async findById(id) {

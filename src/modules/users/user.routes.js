@@ -6,6 +6,13 @@ import {
   getMyProfile,
   logoutUser,
   logoutAllDevices,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  checkUsername,
+  checkEmail,
+  checkMobile,
 } from "./user.controller.js";
 import { verifyToken } from "../../middlewares/auth.middleware.js";
 
@@ -16,6 +23,18 @@ router.post("/login", loginUser);
 router.post("/refresh-token", refreshToken);
 
 router.get("/me", verifyToken, getMyProfile);
+
+router.get("/", verifyToken, getAllUsers);
+
+router.get("/check-username/:username", checkUsername);
+router.get("/check-email/:email", checkEmail);
+router.get("/check-mobile/:mobile", checkMobile);
+
+router.get("/:id", verifyToken, getUserById);
+
+router.put("/:id", verifyToken, updateUser);
+
+router.delete("/:id", verifyToken, deleteUser);
 
 router.post("/logout", verifyToken, logoutUser);
 

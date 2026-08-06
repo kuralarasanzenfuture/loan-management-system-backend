@@ -11,20 +11,31 @@ const REFRESH_EXP_DAYS = 7;
 
 export const UserService = {
   async register(data) {
-    const existing = await UserModel.findByUsername(data.username);
+    // 🔥 Normalize username & email to lowercase so that
+    // "John" and "john" are always treated as the same value.
+    const username = data.username.toLowerCase();
+    const email = data.email.toLowerCase();
+
+    const existing = await UserModel.findByUsername(username);
     if (existing) throw { status: 400, message: "Username exists" };
+
+    const existingEmail = await UserModel.findByEmail(email);
+    if (existingEmail) throw { status: 400, message: "Email already exists" };
 
     const hash = await bcrypt.hash(data.password, 10);
 
     const id = await UserModel.create({
       ...data,
+      username,
+      email,
       password_hash: hash,
     });
 
-    return { id, username: data.username };
+    return { id, username, email };
   },
 
   // async login(data, req, res) {
+
   //   const db = getDB();
 
   //   const user = await UserModel.findByLogin(data.loginId);
@@ -136,7 +147,11 @@ export const UserService = {
   async login(data, req) {
     const db = getDB();
 
-    const user = await UserModel.findByLogin(data.loginId);
+    // 🔥 Normalize loginId to lowercase so that "John" / "JOHN@EXAMPLE.COM"
+    // match the lowercase values stored in the database.
+    const loginId = data.loginId.toLowerCase();
+
+    const user = await UserModel.findByLogin(loginId);
 
     if (!user) throw { status: 404, message: "User not found" };
     if (user.status !== "active")
@@ -355,6 +370,94 @@ export const UserService = {
     };
   },
 
+  /*=====================================*/
+
+  async getProfile(userId) {
+    const user = await UserModel.getProfile(userId);
+
+    if (!user) {
+      throw { status: 404, message: "User not found" };
+    }
+
+    return user;
+  },
+
+  /* =========================
+     GET ALL
+  ========================= */
+  async getAll() {
+    return await UserModel.findAll();
+  },
+
+  /* =========================
+     GET BY ID
+  ========================= */
+  async getById(id) {
+    const user = await UserModel.findById(id);
+
+    if (!user) {
+      throw { status: 404, message: "User not found" };
+    }
+
+    return user;
+  },
+
+  /* =========================
+     UPDATE
+  ========================= */
+  async update(id, data) {
+    const user = await UserModel.findById(id);
+
+    if (!user) {
+      throw { status: 404, message: "User not found" };
+    }
+
+    // 🔥 Normalize username & email to lowercase before any checks/storage
+    if (data.username) data.username = data.username.toLowerCase();
+    if (data.email) data.email = data.email.toLowerCase();
+
+    // 🔥 optional validations
+    if (data.email) {
+      const existing = await UserModel.findByEmail(data.email);
+      if (existing && Number(existing.id) !== Number(id)) {
+        throw { status: 400, message: "Email already exists" };
+      }
+    }
+
+    if (data.username) {
+      const existing = await UserModel.findByUsername(data.username);
+      if (existing && Number(existing.id) !== Number(id)) {
+        throw { status: 400, message: "Username already exists" };
+      }
+    }
+
+    if (data.mobile) {
+      const existing = await UserModel.findByMobile(data.mobile);
+      if (existing && Number(existing.id) !== Number(id)) {
+        throw { status: 400, message: "Mobile already exists" };
+      }
+    }
+
+    await UserModel.update(id, data);
+
+    return { message: "User updated successfully" };
+  },
+
+  /* =========================
+     DELETE
+  ========================= */
+  async delete(id) {
+    const user = await UserModel.findById(id);
+
+    if (!user) {
+      throw { status: 404, message: "User not found" };
+    }
+
+    await UserModel.delete(id);
+
+    return { message: "User deleted successfully" };
+  },
+
   async logout(userId, session_id) {
     const db = getDB();
 
@@ -362,71 +465,82 @@ export const UserService = {
       throw { status: 400, message: "Session ID required" };
     }
 
-    await db.query(
+    const [result] = await db.query(
       `UPDATE user_refresh_tokens
      SET is_active = FALSE,
          revoked_at = NOW(),
          revoked_reason = 'logout'
-     WHERE user_id = ? AND session_id = ?`,
+     WHERE user_id = ? 
+       AND session_id = ?
+       AND is_active = TRUE`,
       [userId, session_id],
     );
 
-    return { message: "Logged out" };
+    // 🔥 IMPORTANT CHECK
+    if (result.affectedRows === 0) {
+      throw { status: 400, message: "Invalid or already logged out session" };
+    }
+
+    return { message: "Logged out successfully" };
   },
 
   async logoutAll(userId) {
     const db = getDB();
 
-    await db.query(
+    const [result] = await db.query(
       `UPDATE user_refresh_tokens
      SET is_active = FALSE,
          revoked_at = NOW(),
          revoked_reason = 'logout_all'
-     WHERE user_id = ?`,
+     WHERE user_id = ? AND is_active = TRUE`,
       [userId],
     );
 
+    if (result.affectedRows === 0) {
+      return { message: "No active sessions found" };
+    }
+
     return { message: "Logged out from all devices" };
   },
-};
 
-export const logout = async (userId, session_id) => {
-  const db = getDB();
+  async checkUsername(username) {
+    if (!username) {
+      throw { status: 400, message: "Username required" };
+    }
 
-  if (!session_id) {
-    throw { status: 400, message: "Session ID missing" };
-  }
+    // 🔥 Normalize to lowercase so "John" and "john" are treated the same
+    const user = await UserModel.findByUsername(username.toLowerCase());
 
-  const [result] = await db.query(
-    `UPDATE user_refresh_tokens
-     SET is_active = FALSE,
-         revoked_at = NOW(),
-         revoked_reason = 'logout'
-     WHERE user_id = ? AND session_id = ? AND is_active = TRUE`,
-    [userId, session_id],
-  );
+    return {
+      exists: !!user,
+      message: user ? "Username already taken" : "Username available",
+    };
+  },
 
-  if (result.affectedRows === 0) {
-    throw { status: 404, message: "Session not found or already logged out" };
-  }
+  async checkEmail(email) {
+    if (!email) {
+      throw { status: 400, message: "Email required" };
+    }
 
-  return { message: "Logged out successfully" };
-};
+    // 🔥 Normalize to lowercase so "JOHN@EXAMPLE.COM" and "john@example.com" are treated the same
+    const user = await UserModel.findByEmail(email.toLowerCase());
 
-export const logoutAll = async (userId) => {
-  const db = getDB();
+    return {
+      exists: !!user,
+      message: user ? "Email already exists" : "Email available",
+    };
+  },
 
-  const [result] = await db.query(
-    `UPDATE user_refresh_tokens
-     SET is_active = FALSE,
-         revoked_at = NOW(),
-         revoked_reason = 'logout_all'
-     WHERE user_id = ? AND is_active = TRUE`,
-    [userId],
-  );
+  async checkMobile(mobile) {
+    if (!mobile) {
+      throw { status: 400, message: "Mobile required" };
+    }
 
-  return {
-    message: "Logged out from all devices",
-    sessions_affected: result.affectedRows,
-  };
+    const user = await UserModel.findByMobile(mobile);
+
+    return {
+      exists: !!user,
+      message: user ? "Mobile already exists" : "Mobile available",
+    };
+  },
 };

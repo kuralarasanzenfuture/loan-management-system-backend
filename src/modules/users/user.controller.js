@@ -1,9 +1,19 @@
 import { errorHandler } from "../../middlewares/error.middleware.js";
 import { UserService } from "./user.service.js";
-import { registerSchema, loginSchema } from "./user.validation.js";
+import {
+  registerSchema,
+  loginSchema,
+  updateUserSchema,
+} from "./user.validation.js";
 
 const ACCESS_EXP = "15m";
 const REFRESH_EXP_DAYS = 7;
+
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: false, // 🔴 true in production (HTTPS)
+};
 
 export const createUser = async (req, res, next) => {
   try {
@@ -112,7 +122,49 @@ export const refreshToken = async (req, res, next) => {
 
 export const getMyProfile = async (req, res, next) => {
   try {
-    res.json(req.user);
+    const user = await UserService.getProfile(req.user.id);
+
+    res.json({
+      success: true,
+      data: user,
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getAllUsers = async (req, res, next) => {
+  try {
+    const users = await UserService.getAll();
+    res.json(users);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getUserById = async (req, res, next) => {
+  try {
+    const user = await UserService.getById(req.params.id);
+    res.json(user);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const updateUser = async (req, res, next) => {
+  try {
+    const data = await updateUserSchema.validateAsync(req.body);
+    const user = await UserService.update(req.params.id, data);
+    res.json(user);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const deleteUser = async (req, res, next) => {
+  try {
+    const result = await UserService.delete(req.params.id);
+    res.json(result);
   } catch (e) {
     next(e);
   }
@@ -120,14 +172,17 @@ export const getMyProfile = async (req, res, next) => {
 
 export const logoutUser = async (req, res, next) => {
   try {
-    const session_id = req.cookies?.session_id;
+    const session_id =
+      req.cookies?.session_id ||
+      req.body?.session_id ||
+      req.body?.sessionId ||
+      req.user?.session_id;
 
     const result = await UserService.logout(req.user.id, session_id);
 
-    // 🍪 clear cookies
-    res.clearCookie("access_token");
-    res.clearCookie("refresh_token");
-    res.clearCookie("session_id");
+    res.clearCookie("access_token", cookieOptions);
+    res.clearCookie("refresh_token", cookieOptions);
+    res.clearCookie("session_id", cookieOptions);
 
     res.json({
       success: true,
@@ -142,10 +197,9 @@ export const logoutAllDevices = async (req, res, next) => {
   try {
     const result = await UserService.logoutAll(req.user.id);
 
-    // 🍪 clear cookies (current device too)
-    res.clearCookie("access_token");
-    res.clearCookie("refresh_token");
-    res.clearCookie("session_id");
+    res.clearCookie("access_token", cookieOptions);
+    res.clearCookie("refresh_token", cookieOptions);
+    res.clearCookie("session_id", cookieOptions);
 
     res.json({
       success: true,
@@ -153,5 +207,44 @@ export const logoutAllDevices = async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+};
+
+export const checkUsername = async (req, res, next) => {
+  try {
+    const result = await UserService.checkUsername(req.params.username);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const checkEmail = async (req, res, next) => {
+  try {
+    const result = await UserService.checkEmail(req.params.email);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const checkMobile = async (req, res, next) => {
+  try {
+    const result = await UserService.checkMobile(req.params.mobile);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (e) {
+    next(e);
   }
 };
