@@ -5,6 +5,7 @@ import userRoutes from "../modules/users/user.routes.js";
 import customerRoutes from "../modules/customers/customer.routes.js";
 import loanPlanRoutes from "../modules/loanPlanAndPenalties/loanPlan.routes.js";
 import loanRoutes from "../modules/customersLoan/loan.routes.js";
+import loanInstallmentsRoutes from "../modules/loanInstallments/installment.routes.js";
 
 const router = express.Router();
 
@@ -12,7 +13,8 @@ router.use("/roles", roleRoutes);
 router.use("/users", userRoutes);
 router.use("/customers", customerRoutes);
 router.use("/loan-plans", loanPlanRoutes);
-router.use("/loans", loanRoutes);
+router.use("/customer-loans", loanRoutes);
+router.use("/loan-installments", loanInstallmentsRoutes);
 
 
 router.get("/", (req, res) => {

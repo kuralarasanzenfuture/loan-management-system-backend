@@ -85,53 +85,38 @@ export const LoanModel = {
   async create(conn, data) {
     const [result] = await conn.query(
       `
-      INSERT INTO loans (
-
-          loan_no,
-
-          customer_id,
-          loan_plan_id,
-
-          loan_amount,
-          commission_amount,
-          net_disbursed_amount,
-          installment_amount,
-          total_repayment,
-
-          start_date,
-          end_date,
-
-          created_by,
-          updated_by,
-
-          status
-
-      )
-
-      VALUES (
-
-          ?,?,?,?,?,?,?,?,?,?,?,?
-
-      )
-      `,
+    INSERT INTO loans (
+      loan_no,
+      customer_id,
+      loan_plan_id,
+      loan_amount,
+      commission_amount,
+      net_disbursed_amount,
+      installment_amount,
+      total_repayment,
+      start_date,
+      end_date,
+      created_by,
+      updated_by,
+      status
+    )
+    VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )
+    `,
       [
         data.loan_no,
-
         data.customer_id,
         data.loan_plan_id,
-
         data.loan_amount,
         data.commission_amount,
         data.net_disbursed_amount,
         data.installment_amount,
         data.total_repayment,
-
         data.start_date,
         data.end_date,
-
         data.created_by,
         data.updated_by,
-
         data.status,
       ],
     );
