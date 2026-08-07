@@ -6,13 +6,16 @@ import {
 
 export const createCustomer = async (req, res, next) => {
   try {
-    const data = await createCustomerSchema.validateAsync(req.body);
+    const data = await createCustomerSchema.validateAsync(req.body, {
+      allowUnknown: true,
+    });
 
     const result = await CustomerService.create(data, req.user, req.files);
 
     res.status(201).json({
       success: true,
-      ...result,
+      data: result.data || result,
+      message: result.message,
     });
   } catch (err) {
     next(err);
@@ -47,7 +50,9 @@ export const getCustomer = async (req, res, next) => {
 
 export const updateCustomer = async (req, res, next) => {
   try {
-    const data = await updateCustomerSchema.validateAsync(req.body);
+    const data = await updateCustomerSchema.validateAsync(req.body, {
+      allowUnknown: true,
+    });
 
     const result = await CustomerService.update(
       req.params.id,
@@ -57,7 +62,8 @@ export const updateCustomer = async (req, res, next) => {
 
     res.json({
       success: true,
-      ...result,
+      data: result.data || result,
+      message: result.message,
     });
   } catch (err) {
     next(err);
@@ -70,6 +76,7 @@ export const deleteCustomer = async (req, res, next) => {
 
     res.json({
       success: true,
+      id: req.params.id,
       ...result,
     });
   } catch (err) {

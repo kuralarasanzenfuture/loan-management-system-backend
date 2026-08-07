@@ -33,6 +33,31 @@ async function generateCustomerNo(conn) {
   return `CUS-${year}-${formatted}`;
 }
 
+function sanitizeCustomerData(data) {
+  const sanitized = { ...data };
+  if (sanitized.dob === "") sanitized.dob = null;
+  if (sanitized.gender === "") sanitized.gender = null;
+  if (sanitized.aadhaar_no === "") sanitized.aadhaar_no = null;
+  if (sanitized.pan_no === "") sanitized.pan_no = null;
+  if (sanitized.alternate_mobile === "") sanitized.alternate_mobile = null;
+  if (sanitized.reference_mobile === "") sanitized.reference_mobile = null;
+  if (sanitized.pincode === "") sanitized.pincode = null;
+  if (sanitized.status === "") sanitized.status = "active";
+
+  if (
+    sanitized.monthly_income === "" ||
+    sanitized.monthly_income === null ||
+    sanitized.monthly_income === undefined ||
+    isNaN(Number(sanitized.monthly_income))
+  ) {
+    sanitized.monthly_income = 0;
+  } else {
+    sanitized.monthly_income = Number(sanitized.monthly_income);
+  }
+
+  return sanitized;
+}
+
 export const CustomerService = {
   async create(data, user, files = {}) {
     const db = getDB();
@@ -42,70 +67,17 @@ export const CustomerService = {
       await conn.beginTransaction();
 
       const customer_no = await generateCustomerNo(conn);
-
-      // const [result] = await conn.query(
-      //   `
-      // INSERT INTO customers (
-      //   customer_no,
-      //   first_name,
-      //   last_name,
-      //   father_name,
-      //   mother_name,
-      //   mobile,
-      //   alternate_mobile,
-      //   aadhaar_no,
-      //   pan_no,
-      //   dob,
-      //   gender,
-      //   occupation,
-      //   monthly_income,
-      //   address,
-      //   city,
-      //   district,
-      //   state,
-      //   pincode,
-      //   photo,
-      //   reference_name,
-      //   reference_mobile,
-      //   remarks,
-      //   created_by
-      // ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      // `,
-      //   [
-      //     customer_no,
-      //     data.first_name,
-      //     data.last_name,
-      //     data.father_name,
-      //     data.mother_name,
-      //     data.mobile,
-      //     data.alternate_mobile,
-      //     data.aadhaar_no,
-      //     data.pan_no,
-      //     data.dob,
-      //     data.gender,
-      //     data.occupation,
-      //     data.monthly_income,
-      //     data.address,
-      //     data.city,
-      //     data.district,
-      //     data.state,
-      //     data.pincode,
-      //     files.photo?.[0]?.filename || null,
-      //     data.reference_name,
-      //     data.reference_mobile,
-      //     data.remarks,
-      //     user.id,
-      //   ],
-      // );
-
-      // const customer_id = result.insertId;
+      const cleanData = sanitizeCustomerData(data);
 
       // 🔹 1. Insert customer (delegated to model)
+      const photoFile = files.photo?.[0];
       const customer_id = await CustomerModel.create(conn, {
-        ...data,
+        ...cleanData,
         customer_no,
         created_by: user.id,
-        photo: files.photo?.[0]?.filename || null,
+        photo: photoFile
+          ? `uploads/customers/photo/${photoFile.filename}`
+          : null,
       });
 
       // 🔹 2. Insert documents (delegated to document service)
@@ -113,15 +85,19 @@ export const CustomerService = {
         conn,
         customer_id,
         files,
+        data,
       );
 
       await conn.commit();
+
+      const newCustomer = await this.getById(customer_id);
 
       return {
         message: "Customer created successfully",
         id: customer_id,
         customer_no,
         documents_uploaded: docsUploaded,
+        data: newCustomer,
       };
     } catch (err) {
       await conn.rollback();
@@ -165,27 +141,39 @@ export const CustomerService = {
     try {
       await conn.beginTransaction();
 
+      const cleanData = sanitizeCustomerData(data);
+
       // 🔹 1. Update customer fields
       if (files.photo?.[0]?.filename) {
-        data.photo = files.photo[0].filename;
+        cleanData.photo = `uploads/customers/photo/${files.photo[0].filename}`;
       }
-      await CustomerModel.update(conn, id, data);
+      await CustomerModel.update(conn, id, cleanData);
 
-      // 🔹 2. Insert new documents if any
+      // 🔹 2. Insert new documents if any (excluding "photo" which is handled above)
       let docsUploaded = 0;
-      if (files && Object.keys(files).length > 0) {
+      const hasDocFiles =
+        files &&
+        Object.keys(files).some(
+          (key) => !["photo"].includes(key),
+        );
+
+      if (hasDocFiles) {
         docsUploaded = await CustomerDocumentService.insertDocuments(
           conn,
           id,
           files,
+          data,
         );
       }
 
       await conn.commit();
 
+      const updatedCustomer = await this.getById(id);
+
       return {
         message: "Customer updated",
         documents_uploaded: docsUploaded,
+        data: updatedCustomer,
       };
     } catch (err) {
       await conn.rollback();

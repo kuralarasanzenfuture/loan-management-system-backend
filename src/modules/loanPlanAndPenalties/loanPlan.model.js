@@ -70,7 +70,7 @@ export const LoanPlanModel = {
     const db = getDB();
 
     const [rows] = await db.query(`
-      SELECT lp.*, p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty
+      SELECT lp.*, p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty, p.status AS penalty_status
       FROM loan_plans lp
       LEFT JOIN loan_plan_penalties p
       ON lp.id = p.loan_plan_id
@@ -85,7 +85,7 @@ export const LoanPlanModel = {
 
     const [[row]] = await db.query(
       `
-      SELECT lp.*, p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty
+      SELECT lp.*, p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty, p.status AS penalty_status
       FROM loan_plans lp
       LEFT JOIN loan_plan_penalties p
       ON lp.id = p.loan_plan_id
@@ -124,21 +124,39 @@ export const LoanPlanModel = {
 export const LoanPlanPenaltyModel = {
   async upsert(conn, loanPlanId, penalty) {
     const [existing] = await conn.query(
-      `SELECT id FROM loan_plan_penalties WHERE loan_plan_id=?`,
+      `SELECT * FROM loan_plan_penalties WHERE loan_plan_id=?`,
       [loanPlanId],
     );
 
     if (existing.length > 0) {
+      const prev = existing[0];
+      const grace_days =
+        penalty.grace_days !== undefined ? penalty.grace_days : prev.grace_days;
+      const penalty_type =
+        penalty.penalty_type !== undefined
+          ? penalty.penalty_type
+          : prev.penalty_type;
+      const penalty_value =
+        penalty.penalty_value !== undefined
+          ? penalty.penalty_value
+          : prev.penalty_value;
+      const max_penalty =
+        penalty.max_penalty !== undefined
+          ? penalty.max_penalty
+          : prev.max_penalty;
+      const status =
+        penalty.status !== undefined ? penalty.status : prev.status;
+
       await conn.query(
         `UPDATE loan_plan_penalties SET
           grace_days=?, penalty_type=?, penalty_value=?, max_penalty=?, status=?
         WHERE loan_plan_id=?`,
         [
-          penalty.grace_days,
-          penalty.penalty_type,
-          penalty.penalty_value,
-          penalty.max_penalty,
-          penalty.status,
+          grace_days,
+          penalty_type,
+          penalty_value,
+          max_penalty,
+          status,
           loanPlanId,
         ],
       );
@@ -151,11 +169,11 @@ export const LoanPlanPenaltyModel = {
         ) VALUES (?,?,?,?,?,?)`,
         [
           loanPlanId,
-          penalty.grace_days,
+          penalty.grace_days ?? 0,
           penalty.penalty_type,
           penalty.penalty_value,
-          penalty.max_penalty,
-          penalty.status,
+          penalty.max_penalty ?? null,
+          penalty.status ?? "active",
         ],
       );
     }

@@ -32,7 +32,8 @@ export const LoanPlanService = {
 
       await conn.commit();
 
-      return { message: "Loan plan created", id: loanPlanId };
+      const plan = await LoanPlanModel.findById(loanPlanId);
+      return { message: "Loan plan created", data: plan };
     } catch (err) {
       await conn.rollback();
       throw err;
@@ -57,7 +58,7 @@ export const LoanPlanService = {
       // 🔹 CRUD check: prevent duplicate plan_code (excluding current record)
       if (data.plan_code) {
         const dupCode = await LoanPlanModel.findByCode(conn, data.plan_code);
-        if (dupCode && dupCode.id !== existing.id) {
+        if (dupCode && Number(dupCode.id) !== Number(existing.id)) {
           throw { status: 400, message: "Loan plan code already exists" };
         }
       }
@@ -65,7 +66,7 @@ export const LoanPlanService = {
       // 🔹 CRUD check: prevent duplicate plan_name (excluding current record)
       if (data.plan_name) {
         const dupName = await LoanPlanModel.findByName(conn, data.plan_name);
-        if (dupName && dupName.id !== existing.id) {
+        if (dupName && Number(dupName.id) !== Number(existing.id)) {
           throw { status: 400, message: "Loan plan name already exists" };
         }
       }
@@ -81,7 +82,8 @@ export const LoanPlanService = {
 
       await conn.commit();
 
-      return { message: "Loan plan updated", id };
+      const updatedPlan = await LoanPlanModel.findById(id);
+      return { message: "Loan plan updated", data: updatedPlan };
     } catch (err) {
       await conn.rollback();
       throw err;

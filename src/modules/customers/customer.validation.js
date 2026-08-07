@@ -24,13 +24,15 @@ export const createCustomerSchema = Joi.object({
 
   pan_no: Joi.string().length(10).uppercase().allow("", null),
 
-  dob: Joi.date().allow(null),
+  dob: Joi.alternatives().try(Joi.date(), Joi.string().allow("", null)),
 
-  gender: Joi.string().valid("male", "female", "other").allow(null),
+  gender: Joi.string().valid("male", "female", "other", "").allow("", null),
 
   occupation: Joi.string().max(100).allow("", null),
 
-  monthly_income: Joi.number().min(0).default(0),
+  monthly_income: Joi.alternatives()
+    .try(Joi.number().min(0), Joi.string().allow("", null))
+    .default(0),
 
   address: Joi.string().allow("", null),
 
@@ -49,6 +51,11 @@ export const createCustomerSchema = Joi.object({
     .allow("", null),
 
   remarks: Joi.string().allow("", null),
+
+  status: Joi.string()
+    .valid("active", "inactive", "blocked", "")
+    .allow("", null)
+    .default("active"),
 });
 
 export const updateCustomerSchema = createCustomerSchema.fork(

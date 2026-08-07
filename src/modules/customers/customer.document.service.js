@@ -1,4 +1,8 @@
 import { getDB } from "../../config/db.js";
+import { getImageUrl } from "../../utils/imageUrl.js";
+
+// Fields that are NOT customer documents (handled separately)
+const NON_DOCUMENT_FIELDS = ["photo"];
 
 export const CustomerDocumentService = {
   /**
@@ -6,25 +10,37 @@ export const CustomerDocumentService = {
    * @param {object} conn  - active DB connection (transaction)
    * @param {number} customerId
    * @param {object} files - req.files from multer
+   * @param {object} [body] - req.body (for document_number mapping)
    */
-  async insertDocuments(conn, customerId, files = {}) {
+  async insertDocuments(conn, customerId, files = {}, body = {}) {
     if (!files || Object.keys(files).length === 0) return 0;
 
     let count = 0;
 
     for (const fieldName of Object.keys(files)) {
+      // 🔥 Skip non-document fields (e.g. "photo" is stored in customers table)
+      if (NON_DOCUMENT_FIELDS.includes(fieldName)) continue;
+
       const fileArray = files[fieldName];
 
       for (const file of fileArray) {
+        // 🔥 Store the correct relative path so getImageUrl can build the full URL
+        // File is saved at: uploads/customers/<fieldName>/<file.filename>
+        const relativePath = `uploads/customers/${fieldName}/${file.filename}`;
+
+        // 🔥 document_number may be sent in the body keyed by document type
+        const documentNumber = body[`${fieldName}_number`] || null;
+
         await conn.query(
           `
           INSERT INTO customer_documents (
             customer_id,
             document_type,
+            document_number,
             file_name
-          ) VALUES (?,?,?)
+          ) VALUES (?,?,?,?)
           `,
-          [customerId, fieldName, file.filename],
+          [customerId, fieldName, documentNumber, relativePath],
         );
         count++;
       }
@@ -36,22 +52,6 @@ export const CustomerDocumentService = {
   /**
    * Get all documents for a customer.
    */
-  // async getByCustomerId(customerId) {
-  //   const db = getDB();
-
-  //   const [rows] = await db.query(
-  //     `
-  //     SELECT id, document_type, document_number, file_name, verified, uploaded_at
-  //     FROM customer_documents
-  //     WHERE customer_id = ?
-  //     ORDER BY uploaded_at DESC
-  //     `,
-  //     [customerId],
-  //   );
-
-  //   return rows;
-  // },
-  /*=================================================*/
   async getByCustomerId(customerId) {
     const db = getDB();
 
@@ -72,35 +72,6 @@ export const CustomerDocumentService = {
     }));
   },
 
-  /* =========================*/
-
-  // async getByCustomerId(customerId) {
-  //   const db = getDB();
-  //   const baseUrl = process.env.BASE_URL || "http://localhost:5000/";
-
-  //   const [rows] = await db.query(
-  //     `
-  //   SELECT
-  //     id,
-  //     document_type,
-  //     document_number,
-  //     IF(
-  //       file_name LIKE 'http%',
-  //       file_name,
-  //       CONCAT(?, LTRIM(file_name))
-  //     ) AS file_name,
-  //     verified,
-  //     uploaded_at
-  //   FROM customer_documents
-  //   WHERE customer_id = ?
-  //   ORDER BY uploaded_at DESC
-  //   `,
-  //     [baseUrl, customerId],
-  //   );
-
-  //   return rows;
-  // },
-
   /**
    * Get a single document by id.
    */
@@ -116,7 +87,13 @@ export const CustomerDocumentService = {
       [id],
     );
 
-    return row;
+    if (!row) return null;
+
+    // 🔥 Attach full URL to file_name
+    return {
+      ...row,
+      file_name: getImageUrl(row.file_name),
+    };
   },
 
   /**

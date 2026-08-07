@@ -31,10 +31,11 @@ photo,
 reference_name,
 reference_mobile,
 remarks,
+status,
 created_by
 )
 VALUES
-(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 `,
       [
         data.customer_no,
@@ -59,26 +60,13 @@ VALUES
         data.reference_name,
         data.reference_mobile,
         data.remarks,
+        data.status || "active",
         data.created_by,
       ],
     );
 
     return result.insertId;
   },
-
-  //   async findAll() {
-  //     const db = getDB();
-
-  //     const [rows] = await db.query(
-  //       `
-  // SELECT *
-  // FROM customers
-  // ORDER BY id DESC
-  // `,
-  //     );
-
-  //     return rows;
-  //   },
 
   async findAll() {
     const db = getDB();
@@ -110,7 +98,7 @@ WHERE id=?
       [id],
     );
 
-    return row;
+    return row ? { ...row, photo: getImageUrl(row.photo) } : null;
   },
 
   async update(conn, id, data) {
@@ -142,6 +130,7 @@ WHERE id=?
       "reference_name",
       "reference_mobile",
       "remarks",
+      "status",
     ];
 
     for (const field of updatableFields) {
