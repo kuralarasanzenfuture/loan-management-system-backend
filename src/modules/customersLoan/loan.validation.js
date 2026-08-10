@@ -7,9 +7,11 @@ export const createLoanSchema = Joi.object({
 
   loan_amount: Joi.number().positive().precision(2).required(),
 
-  start_date: Joi.date().required(),
+  start_date: Joi.date().iso().required(),
 
   status: Joi.string()
+    .trim()
+    .lowercase()
     .valid("active", "completed", "closed", "default")
     .default("active"),
 });
@@ -21,15 +23,19 @@ export const updateLoanSchema = Joi.object({
 
   loan_amount: Joi.number().positive().precision(2).required(),
 
-  start_date: Joi.date().required(),
+  start_date: Joi.date().iso().required(),
 
   status: Joi.string()
+    .trim()
+    .lowercase()
     .valid("active", "completed", "closed", "default")
-    .default("active"),
+    .optional(),
 });
 
 export const updateLoanStatusSchema = Joi.object({
   status: Joi.string()
+    .trim()
+    .lowercase()
     .valid("active", "completed", "closed", "default")
     .required(),
 });

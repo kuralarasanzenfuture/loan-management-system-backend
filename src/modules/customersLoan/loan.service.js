@@ -1,4 +1,6 @@
 import { getDB } from "../../config/db.js";
+import LoanInstallmentService from "../loanInstallments/installment.service.js";
+import LoanInstallmentModel from "../loanInstallments/installment.model.js";
 import { LoanModel } from "./loan.model.js";
 
 export const LoanService = {
@@ -151,12 +153,25 @@ export const LoanService = {
         status: data.status || "active",
       });
 
+      const loan = await LoanModel.findById(conn, loanId);
+
+      if (!loan) {
+        throw {
+          status: 500,
+          message: "Loan creation failed",
+        };
+      }
+
+      await LoanInstallmentService.generateForLoan(conn, loan, plan);
+
       await conn.commit();
+
+      /* Return the full loan record so the frontend slice can update state */
+      const createdLoan = await LoanModel.findById(getDB(), loanId);
 
       return {
         message: "Loan created successfully",
-        id: loanId,
-        loan_no,
+        data: createdLoan,
       };
     } catch (err) {
       await conn.rollback();
@@ -313,7 +328,7 @@ export const LoanService = {
 
         updated_by: user.id,
 
-        status: data.status || "active",
+        status: data.status || loan.status || "active",
       });
 
       if (!affected) {
@@ -323,11 +338,49 @@ export const LoanService = {
         };
       }
 
+      /* -----------------------------------------
+       REGENERATE INSTALLMENTS if key fields changed
+       Only allowed before any payment has been made.
+    ----------------------------------------- */
+
+      const planChanged = Number(loan.loan_plan_id) !== Number(data.loan_plan_id);
+      const amountChanged =
+        Number(loan.loan_amount) !== Number(data.loan_amount);
+      const dateChanged =
+        String(loan.start_date).slice(0, 10) !==
+        String(data.start_date).slice(0, 10);
+
+      if (planChanged || amountChanged || dateChanged) {
+        const hasPayments = await LoanInstallmentModel.hasPayments(conn, id);
+
+        if (hasPayments) {
+          throw {
+            status: 400,
+            message:
+              "Cannot change loan amount, plan, or start date after payments have been recorded. Update the status or individual installments instead.",
+          };
+        }
+
+        /* Delete old schedule and regenerate */
+        await LoanInstallmentModel.deleteByLoanId(conn, id);
+
+        const updatedLoanForInstallments = await LoanModel.findById(conn, id);
+
+        await LoanInstallmentService.generateForLoan(
+          conn,
+          updatedLoanForInstallments,
+          plan,
+        );
+      }
+
       await conn.commit();
+
+      /* Return the full updated loan record */
+      const updatedLoan = await LoanModel.findById(getDB(), id);
 
       return {
         message: "Loan updated successfully",
-        id,
+        data: updatedLoan,
       };
     } catch (err) {
       await conn.rollback();
@@ -396,9 +449,11 @@ export const LoanService = {
 
       await conn.commit();
 
+      const updatedLoan = await LoanModel.findById(getDB(), id);
+
       return {
         message: "Loan status updated successfully",
-        id,
+        data: updatedLoan,
       };
     } catch (err) {
       await conn.rollback();

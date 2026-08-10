@@ -17,7 +17,7 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (customer_id) REFERENCES customers (id),
-        FOREIGN KEY (loan_plan_id) REFERENCES loan_plans (id),
+        FOREIGN KEY (loan_plan_id) REFERENCES loan_plans (id) ON DELETE RESTRICT ON UPDATE CASCADE,
         FOREIGN KEY (created_by) REFERENCES users (id),
         FOREIGN KEY (updated_by) REFERENCES users (id),
         UNIQUE KEY unique_loan_no (loan_no),

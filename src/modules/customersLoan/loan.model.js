@@ -1,4 +1,5 @@
 import { getDB } from "../../config/db.js";
+import { getImageUrl } from "../../utils/imageUrl.js";
 
 export const LoanModel = {
   /* ==========================================================
@@ -214,6 +215,7 @@ export const LoanModel = {
             c.customer_no,
             CONCAT(c.first_name,' ',IFNULL(c.last_name,'')) customer_name,
             c.mobile,
+            c.photo,
 
             lp.plan_name,
             lp.plan_code,
@@ -237,7 +239,11 @@ export const LoanModel = {
       [...params, Number(limit), offset],
     );
 
-    return rows;
+    // return rows;
+    return rows.map((row) => ({
+      ...row,
+      photo: getImageUrl(row.photo),
+    }));
   },
 
   /* ==========================================================
@@ -254,6 +260,7 @@ export const LoanModel = {
             c.customer_no,
             CONCAT(c.first_name,' ',IFNULL(c.last_name,'')) customer_name,
             c.mobile,
+            c.photo,
 
             lp.plan_name,
             lp.plan_code,
@@ -276,7 +283,11 @@ export const LoanModel = {
       [id],
     );
 
-    return row;
+    // return row;
+    return {
+      ...row,
+      photo: getImageUrl(row.photo),
+    };
   },
 
   /* ==========================================================

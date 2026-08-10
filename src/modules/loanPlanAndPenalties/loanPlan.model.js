@@ -70,10 +70,17 @@ export const LoanPlanModel = {
     const db = getDB();
 
     const [rows] = await db.query(`
-      SELECT lp.*, p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty, p.status AS penalty_status
+      SELECT
+        lp.*,
+        p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty, p.status AS penalty_status,
+        CAST(COALESCE(l.loan_count, 0) AS UNSIGNED) AS loan_count
       FROM loan_plans lp
-      LEFT JOIN loan_plan_penalties p
-      ON lp.id = p.loan_plan_id
+      LEFT JOIN loan_plan_penalties p ON lp.id = p.loan_plan_id
+      LEFT JOIN (
+        SELECT loan_plan_id, COUNT(*) AS loan_count
+        FROM loans
+        GROUP BY loan_plan_id
+      ) l ON lp.id = l.loan_plan_id
       ORDER BY lp.id DESC
     `);
 
@@ -85,10 +92,17 @@ export const LoanPlanModel = {
 
     const [[row]] = await db.query(
       `
-      SELECT lp.*, p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty, p.status AS penalty_status
+      SELECT
+        lp.*,
+        p.grace_days, p.penalty_type, p.penalty_value, p.max_penalty, p.status AS penalty_status,
+        CAST(COALESCE(l.loan_count, 0) AS UNSIGNED) AS loan_count
       FROM loan_plans lp
-      LEFT JOIN loan_plan_penalties p
-      ON lp.id = p.loan_plan_id
+      LEFT JOIN loan_plan_penalties p ON lp.id = p.loan_plan_id
+      LEFT JOIN (
+        SELECT loan_plan_id, COUNT(*) AS loan_count
+        FROM loans
+        GROUP BY loan_plan_id
+      ) l ON lp.id = l.loan_plan_id
       WHERE lp.id=?`,
       [id],
     );

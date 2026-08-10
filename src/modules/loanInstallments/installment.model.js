@@ -1,5 +1,3 @@
-// installment.model.js
-
 import { getDB } from "../../config/db.js";
 
 const LoanInstallmentModel = {
@@ -169,9 +167,19 @@ const LoanInstallmentModel = {
       values.push(data.penalty_amount);
     }
 
+    if (data.total_due !== undefined) {
+      fields.push("total_due = ?");
+      values.push(data.total_due);
+    }
+
     if (data.paid_amount !== undefined) {
       fields.push("paid_amount = ?");
       values.push(data.paid_amount);
+    }
+
+    if (data.balance_amount !== undefined) {
+      fields.push("balance_amount = ?");
+      values.push(data.balance_amount);
     }
 
     if (data.paid_date !== undefined) {

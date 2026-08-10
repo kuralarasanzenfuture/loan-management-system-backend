@@ -34,6 +34,7 @@ router.get("/:id", verifyToken, getLoanById);
 router.put("/:id", verifyToken, updateLoan);
 
 router.patch("/:id/status", verifyToken, updateLoanStatus);
+router.put("/:id/status", verifyToken, updateLoanStatus);
 
 /* ==========================
    DELETE
