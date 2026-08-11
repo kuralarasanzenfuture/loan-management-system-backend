@@ -1,6 +1,7 @@
 import express from "express";
 
 import companyDetailsRoutes from "../modules/companyDetails/companyDetails.routes.js";
+import companyBankRoutes from "../modules/companyBanks/companyBank.routes.js";
 import roleRoutes from "../modules/roles/role.routes.js";
 import userRoutes from "../modules/users/user.routes.js";
 import customerRoutes from "../modules/customers/customer.routes.js";
@@ -10,6 +11,7 @@ import loanInstallmentsRoutes from "../modules/loanInstallments/installment.rout
 
 const router = express.Router();
 router.use("/company-details", companyDetailsRoutes);
+router.use("/company-banks", companyBankRoutes);
 router.use("/roles", roleRoutes);
 router.use("/users", userRoutes);
 router.use("/customers", customerRoutes);

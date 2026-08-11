@@ -1,7 +1,7 @@
 CREATE TABLE
     IF NOT EXISTS company_banks (
         id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        company_id BIGINT NOT NULL,
+        company_id BIGINT NULL,
         /* =====================================================
         BANK INFORMATION
         ===================================================== */

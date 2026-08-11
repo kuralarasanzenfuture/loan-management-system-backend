@@ -29,16 +29,32 @@ function extractFilePaths(files = {}) {
   return map;
 }
 
+// Map remove flags to database columns
+const REMOVE_FIELDS = {
+  remove_logo: "logo",
+  remove_favicon: "favicon",
+  remove_stamp_image: "stamp_image",
+  remove_signature_image: "signature_image",
+};
+
 export const createCompany = async (req, res, next) => {
   try {
     const data = await createCompanySchema.validateAsync(req.body, {
-      allowUnknown: false,
+      allowUnknown: true,
       abortEarly: false,
     });
 
     // Merge uploaded file paths
     const filePaths = extractFilePaths(req.files);
     const payload = { ...data, ...filePaths };
+
+    // Handle removal of images if flagged
+    Object.entries(REMOVE_FIELDS).forEach(([removeKey, dbField]) => {
+      if (req.body[removeKey] === "true" || req.body[removeKey] === true) {
+        payload[dbField] = null;
+      }
+      delete payload[removeKey];
+    });
 
     const result = await CompanyService.create(payload, req.user);
 
@@ -83,13 +99,21 @@ export const getCompanyById = async (req, res, next) => {
 export const updateCompany = async (req, res, next) => {
   try {
     const data = await updateCompanySchema.validateAsync(req.body, {
-      allowUnknown: false,
+      allowUnknown: true,
       abortEarly: false,
     });
 
     // Merge uploaded file paths
     const filePaths = extractFilePaths(req.files);
     const payload = { ...data, ...filePaths };
+
+    // Handle removal of images if flagged
+    Object.entries(REMOVE_FIELDS).forEach(([removeKey, dbField]) => {
+      if (req.body[removeKey] === "true" || req.body[removeKey] === true) {
+        payload[dbField] = null;
+      }
+      delete payload[removeKey];
+    });
 
     const result = await CompanyService.update(
       req.params.id,
