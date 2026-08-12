@@ -1,4 +1,5 @@
 import { getDB } from "../../config/db.js";
+import { getImageUrl } from "../../utils/imageUrl.js";
 
 const CompanyBankModel = {
   async create(conn, data) {
@@ -68,35 +69,146 @@ const CompanyBankModel = {
     );
   },
 
+  // async findAll(filters = {}) {
+  //   const db = getDB();
+
+  //   let query = `SELECT * FROM company_banks WHERE 1=1`;
+  //   const params = [];
+
+  //   if (filters.company_id) {
+  //     query += ` AND company_id = ?`;
+  //     params.push(filters.company_id);
+  //   }
+
+  //   if (filters.status) {
+  //     query += ` AND status = ?`;
+  //     params.push(filters.status);
+  //   }
+
+  //   query += ` ORDER BY is_primary DESC, id DESC`;
+
+  //   const [rows] = await db.query(query, params);
+  //   return rows;
+  // },
+
   async findAll(filters = {}) {
     const db = getDB();
 
-    let query = `SELECT * FROM company_banks WHERE 1=1`;
+    let query = `
+    SELECT 
+      cb.*,
+      c.company_name
+    FROM company_banks cb
+    LEFT JOIN company_details c ON c.id = cb.company_id
+    WHERE 1=1
+  `;
+
     const params = [];
 
     if (filters.company_id) {
-      query += ` AND company_id = ?`;
+      query += ` AND cb.company_id = ?`;
       params.push(filters.company_id);
     }
 
     if (filters.status) {
-      query += ` AND status = ?`;
+      query += ` AND cb.status = ?`;
       params.push(filters.status);
     }
 
-    query += ` ORDER BY is_primary DESC, id DESC`;
+    if (filters.account_type) {
+      query += ` AND cb.account_type = ?`;
+      params.push(filters.account_type);
+    }
+
+    if (filters.account_purpose) {
+      query += ` AND cb.account_purpose = ?`;
+      params.push(filters.account_purpose);
+    }
+
+    if (filters.is_primary !== undefined) {
+      query += ` AND cb.is_primary = ?`;
+      params.push(filters.is_primary);
+    }
+
+    if (filters.search) {
+      query += `
+      AND (
+        cb.bank_name LIKE ? OR
+        cb.account_holder_name LIKE ? OR
+        cb.account_number LIKE ?
+      )
+    `;
+      const s = `%${filters.search}%`;
+      params.push(s, s, s);
+    }
+
+    query += ` ORDER BY cb.is_primary DESC, cb.id DESC`;
 
     const [rows] = await db.query(query, params);
-    return rows;
+
+    return rows.map((row) => ({
+      ...row,
+
+      // 🔥 FIX NUMBERS
+      opening_balance: Number(row.opening_balance),
+      current_balance: Number(row.current_balance),
+
+      // 🔥 IMAGE FIX
+      upi_qr_code: getImageUrl(row.upi_qr_code),
+
+      // 🔥 BOOLEAN FIX
+      is_primary: Boolean(row.is_primary),
+      is_collection_account: Boolean(row.is_collection_account),
+      is_disbursement_account: Boolean(row.is_disbursement_account),
+    }));
   },
 
-  async findById(connOrDb, id) {
-    const db = typeof connOrDb?.query === "function" ? connOrDb : getDB();
-    const targetId = typeof connOrDb === "number" || typeof connOrDb === "string" ? connOrDb : id;
-    const [[row]] = await db.query(`SELECT * FROM company_banks WHERE id = ?`, [
-      targetId,
-    ]);
-    return row;
+  // async findById(connOrDb, id) {
+  //   const db = typeof connOrDb?.query === "function" ? connOrDb : getDB();
+  //   const targetId =
+  //     typeof connOrDb === "number" || typeof connOrDb === "string"
+  //       ? connOrDb
+  //       : id;
+  //   const [[row]] = await db.query(`SELECT * FROM company_banks WHERE id = ?`, [
+  //     targetId,
+  //   ]);
+  //   return row;
+  // },
+
+  async findById(conn, id) {
+    const db = conn || getDB();
+
+    if (!id) {
+      throw { status: 400, message: "Bank ID is required" };
+    }
+
+    const [[row]] = await db.query(
+      `SELECT 
+        cb.*,
+        c.company_name
+     FROM company_banks cb
+     LEFT JOIN company_details c ON c.id = cb.company_id
+     WHERE cb.id = ?`,
+      [id],
+    );
+
+    if (!row) return null;
+
+    return {
+      ...row,
+
+      // 🔥 FIX TYPES
+      opening_balance: Number(row.opening_balance),
+      current_balance: Number(row.current_balance),
+
+      // 🔥 BOOLEAN FIX
+      is_primary: Boolean(row.is_primary),
+      is_collection_account: Boolean(row.is_collection_account),
+      is_disbursement_account: Boolean(row.is_disbursement_account),
+
+      // 🔥 IMAGE FIX
+      upi_qr_code: getImageUrl(row.upi_qr_code),
+    };
   },
 
   async update(conn, id, data) {

@@ -47,6 +47,8 @@ CREATE TABLE
         ===================================================== */
         description TEXT,
         remarks TEXT,
+        status ENUM ('active', 'reversed', 'cancelled') DEFAULT 'active',
+        reversal_id BIGINT NULL,
         /* =====================================================
         AUDIT
         ===================================================== */
@@ -55,9 +57,11 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT fk_bank_transaction_bank FOREIGN KEY (company_bank_id) REFERENCES company_banks (id) ON DELETE RESTRICT ON UPDATE CASCADE,
         CONSTRAINT fk_bank_transaction_user FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+        UPDATE bank_transactions SET status = 'active' WHERE status IS NULL;
         INDEX idx_bank (company_bank_id),
         INDEX idx_transaction_date (transaction_date),
         INDEX idx_transaction_type (transaction_type),
         INDEX idx_reference (reference_type, reference_id),
-        INDEX idx_payment_reference (transaction_reference)
+        INDEX idx_payment_reference (transaction_reference),
+        INDEX idx_bank_transaction_status (status)
     );
