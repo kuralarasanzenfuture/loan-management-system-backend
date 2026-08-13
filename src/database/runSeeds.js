@@ -5,6 +5,8 @@ import { SeedCustomers } from "./seeds/seedCustomers.js";
 import { SeedLoanPlans } from "./seeds/SeedLoanPlans.js";
 import { SeedCompanyDetails } from "./seeds/seedCompanyDetails.js";
 import { SeedCompanyBanks } from "./seeds/seedCompanyBanks.js";
+import { SeedAssetCategories } from "./seeds/seedAssetCategories.js";
+import { SeedBusinessAssets } from "./seeds/seedBusinessAssets.js";
 
 const runSeeds = async () => {
   try {
@@ -24,6 +26,10 @@ const runSeeds = async () => {
     await SeedCompanyDetails();
     
     await SeedCompanyBanks();
+    
+    await SeedAssetCategories();
+    
+    await SeedBusinessAssets();
 
     console.log("✅ Seeding completed");
   } catch (err) {

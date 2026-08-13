@@ -9,6 +9,8 @@ import customerRoutes from "../modules/customers/customer.routes.js";
 import loanPlanRoutes from "../modules/loanPlanAndPenalties/loanPlan.routes.js";
 import loanRoutes from "../modules/customersLoan/loan.routes.js";
 import loanInstallmentsRoutes from "../modules/loanInstallments/installment.routes.js";
+import assetCategoryRoutes from "../modules/assetCategory/assetCategory.routes.js";
+import assetRoutes from "../modules/businessAssert/businessAsset.routes.js";
 
 const router = express.Router();
 router.use("/roles", roleRoutes);
@@ -20,6 +22,8 @@ router.use("/loan-installments", loanInstallmentsRoutes);
 router.use("/company-details", companyDetailsRoutes);
 router.use("/company-banks", companyBankRoutes);
 router.use("/bank-transactions", bankTransactionRoutes);
+router.use("/asset-categories", assetCategoryRoutes);
+router.use("/assets", assetRoutes);
 
 
 router.get("/", (req, res) => {
