@@ -1,4 +1,3 @@
-// loanPlan.validation.js
 import Joi from "joi";
 
 export const createLoanPlanSchema = Joi.object({
