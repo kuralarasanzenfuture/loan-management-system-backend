@@ -17,6 +17,8 @@ export const createPaymentSchema = Joi.object({
 
   pending_amount: Joi.number().min(0).default(0),
 
+  bit_benefit_amount: Joi.number().min(0).default(0),
+
   payment_mode: Joi.string()
     .trim()
     .lowercase()
@@ -37,7 +39,7 @@ export const createPaymentSchema = Joi.object({
     .default("pending"),
 
   remarks: Joi.string().trim().allow("", null).default(null),
-});
+}).unknown(true);
 
 /* =====================================================
     GENERATE INSTALLMENT
@@ -65,11 +67,13 @@ export const updatePaymentSchema = Joi.object({
 
   pending_amount: Joi.number().min(0),
 
+  bit_benefit_amount: Joi.number().min(0),
+
   payment_mode: Joi.string()
     .trim()
     .lowercase()
     .valid("cash", "bank", "upi", "cheque", "other")
-    .allow(null),
+    .allow("", null),
 
   transaction_reference: Joi.string().trim().max(150).allow("", null),
 
@@ -79,7 +83,7 @@ export const updatePaymentSchema = Joi.object({
     .valid("pending", "partial", "paid", "overdue"),
 
   remarks: Joi.string().trim().allow("", null),
-});
+}).unknown(true);
 
 export const bulkInstallmentSchema = Joi.object({
   installments: Joi.array()
@@ -90,6 +94,8 @@ export const bulkInstallmentSchema = Joi.object({
         due_date: Joi.date().required(),
 
         due_amount: Joi.number().min(0).optional(),
+
+        bit_benefit_amount: Joi.number().min(0).default(0),
       }),
     )
     .min(1)

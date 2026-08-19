@@ -62,18 +62,34 @@ const PersonalChitPaymentService = {
 
       const paidAmount = Number(data.paid_amount || 0);
 
+      const bitBenefitAmount = Number(data.bit_benefit_amount || 0);
+
       /* ---------------------------------------------
-         Validate paid amount
+         Validate amounts
       --------------------------------------------- */
 
-      if (paidAmount > dueAmount) {
+      if (paidAmount < 0) {
         throw {
           status: 400,
-          message: "Paid amount cannot exceed due amount",
+          message: "Paid amount cannot be negative",
         };
       }
 
-      const pendingAmount = dueAmount - paidAmount;
+      if (bitBenefitAmount < 0) {
+        throw {
+          status: 400,
+          message: "Bit benefit amount cannot be negative",
+        };
+      }
+
+      if (paidAmount + bitBenefitAmount > dueAmount) {
+        throw {
+          status: 400,
+          message: "Combined paid amount and bit benefit amount cannot exceed due amount",
+        };
+      }
+
+      const pendingAmount = Math.max(0, dueAmount - paidAmount - bitBenefitAmount);
 
       /* ---------------------------------------------
          Calculate payment status
@@ -83,7 +99,7 @@ const PersonalChitPaymentService = {
 
       if (pendingAmount === 0) {
         status = "paid";
-      } else if (paidAmount > 0) {
+      } else if (paidAmount + bitBenefitAmount > 0) {
         status = "partial";
       }
 
@@ -110,6 +126,7 @@ const PersonalChitPaymentService = {
         due_amount: dueAmount,
         paid_amount: paidAmount,
         pending_amount: pendingAmount,
+        bit_benefit_amount: bitBenefitAmount,
 
         status,
 
@@ -519,6 +536,7 @@ const PersonalChitPaymentService = {
           due_amount: item.due_amount,
           paid_amount: 0,
           pending_amount: item.due_amount,
+          bit_benefit_amount: Number(item.bit_benefit_amount || 0),
 
           status: "pending",
           created_by: user.id,
@@ -659,6 +677,11 @@ const PersonalChitPaymentService = {
           ? Number(data.paid_amount)
           : Number(existing.paid_amount);
 
+      const bitBenefitAmount =
+        data.bit_benefit_amount !== undefined
+          ? Number(data.bit_benefit_amount)
+          : Number(existing.bit_benefit_amount || 0);
+
       if (paidAmount < 0) {
         throw {
           status: 400,
@@ -666,14 +689,21 @@ const PersonalChitPaymentService = {
         };
       }
 
-      if (paidAmount > dueAmount) {
+      if (bitBenefitAmount < 0) {
         throw {
           status: 400,
-          message: "Paid amount cannot exceed due amount",
+          message: "Bit benefit amount cannot be negative",
         };
       }
 
-      const pendingAmount = dueAmount - paidAmount;
+      if (paidAmount + bitBenefitAmount > dueAmount) {
+        throw {
+          status: 400,
+          message: "Combined paid amount and bit benefit amount cannot exceed due amount",
+        };
+      }
+
+      const pendingAmount = Math.max(0, dueAmount - paidAmount - bitBenefitAmount);
 
       const dueDate =
         data.due_date !== undefined ? data.due_date : existing.due_date;
@@ -687,7 +717,7 @@ const PersonalChitPaymentService = {
 
       if (pendingAmount === 0) {
         status = "paid";
-      } else if (paidAmount > 0) {
+      } else if (paidAmount + bitBenefitAmount > 0) {
         status = "partial";
       } else if (new Date(dueDate) < new Date() && !paymentDate) {
         status = "overdue";
@@ -703,6 +733,7 @@ const PersonalChitPaymentService = {
         due_amount: dueAmount,
         paid_amount: paidAmount,
         pending_amount: pendingAmount,
+        bit_benefit_amount: bitBenefitAmount,
 
         status,
       });

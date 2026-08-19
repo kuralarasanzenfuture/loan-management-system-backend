@@ -15,13 +15,14 @@ const PersonalChitPaymentModel = {
         due_amount,
         paid_amount,
         pending_amount,
+        bit_benefit_amount,
         payment_mode,
         transaction_reference,
         status,
         remarks,
         created_by
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )`,
       [
         data.chit_id,
@@ -31,6 +32,7 @@ const PersonalChitPaymentModel = {
         data.due_amount,
         data.paid_amount,
         data.pending_amount,
+        data.bit_benefit_amount || 0,
         data.payment_mode,
         data.transaction_reference,
         data.status,
@@ -156,6 +158,7 @@ const PersonalChitPaymentModel = {
       "due_amount",
       "paid_amount",
       "pending_amount",
+      "bit_benefit_amount",
       "payment_mode",
       "transaction_reference",
       "status",

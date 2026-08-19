@@ -13,7 +13,7 @@ import {
 
 export const createPayment = async (req, res, next) => {
   try {
-    const data = await createPaymentSchema.validateAsync(req.body);
+    const data = await createPaymentSchema.validateAsync(req.body, { stripUnknown: true });
 
     const result = await PersonalChitPaymentService.create(
       req.params.id,
@@ -142,7 +142,7 @@ export const getPaymentById = async (req, res, next) => {
 
 export const updatePayment = async (req, res, next) => {
   try {
-    const data = await updatePaymentSchema.validateAsync(req.body);
+    const data = await updatePaymentSchema.validateAsync(req.body, { stripUnknown: true });
 
     const result = await PersonalChitPaymentService.update(
       req.params.id,
