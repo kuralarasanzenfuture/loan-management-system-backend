@@ -226,3 +226,41 @@ export const regenerateInstallments = async (req, res, next) => {
     next(err);
   }
 };
+
+/* ===============================
+   TODAY COLLECTIONS
+=============================== */
+export const getTodayCollections = async (req, res, next) => {
+  try {
+    const { date } = req.query;
+
+    const result = await LoanInstallmentService.getTodayCollections(date);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    console.error("TODAY COLLECTION ERROR:", err);
+    next(err);
+  }
+};
+
+/* ===============================
+   GLOBAL OVERDUE
+=============================== */
+export const getOverdueInstallmentsGlobal = async (req, res, next) => {
+  try {
+    const result = await LoanInstallmentService.getOverdueInstallmentsGlobal(
+      req.query,
+    );
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    console.error("OVERDUE ERROR:", err);
+    next(err);
+  }
+};

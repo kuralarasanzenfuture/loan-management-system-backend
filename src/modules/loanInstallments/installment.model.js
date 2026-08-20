@@ -217,6 +217,137 @@ const LoanInstallmentModel = {
 
     return result.affectedRows > 0;
   },
+
+  async findTodayCollections(date) {
+    const db = getDB();
+
+    const [rows] = await db.query(
+      `
+    SELECT 
+      li.id,
+      li.loan_id,
+      li.installment_no,
+      li.due_date,
+      li.paid_amount,
+      li.paid_date,
+      li.status,
+
+      c.id AS customer_id,
+      c.first_name,
+      c.last_name,
+      c.mobile
+
+    FROM loan_installments li
+    JOIN loans l ON l.id = li.loan_id
+    JOIN customers c ON c.id = l.customer_id
+
+    WHERE DATE(li.paid_date) = ?
+      AND li.status IN ('paid', 'partial')
+
+    ORDER BY li.paid_date DESC
+    `,
+      [date],
+    );
+
+    return rows;
+  },
+  async findOverdueInstallmentsGlobal(filters = {}) {
+    const db = getDB();
+
+    let query = `
+    SELECT 
+      li.id,
+      li.loan_id,
+      li.installment_no,
+      li.due_date,
+      li.principal_amount,
+      li.balance_amount,
+      li.status,
+
+      c.id AS customer_id,
+      c.first_name,
+      c.last_name,
+      c.mobile,
+
+      lp.id AS loan_plan_id,
+      lpp.grace_days,
+      lpp.penalty_type,
+      lpp.penalty_value,
+      lpp.max_penalty,
+
+      -- 🔥 Days overdue
+      GREATEST(DATEDIFF(CURDATE(), li.due_date), 0) AS days_overdue,
+
+      -- 🔥 Effective overdue after grace
+      GREATEST(DATEDIFF(CURDATE(), li.due_date) - IFNULL(lpp.grace_days, 0), 0) AS chargeable_days,
+
+      -- 🔥 Daily penalty calculation
+      CASE 
+        WHEN lpp.id IS NULL THEN 0
+
+        WHEN GREATEST(DATEDIFF(CURDATE(), li.due_date) - IFNULL(lpp.grace_days, 0), 0) <= 0 
+        THEN 0
+
+        WHEN lpp.penalty_type = 'fixed' 
+        THEN 
+          LEAST(
+            (GREATEST(DATEDIFF(CURDATE(), li.due_date) - IFNULL(lpp.grace_days, 0), 0) * lpp.penalty_value),
+            IFNULL(lpp.max_penalty, 999999999)
+          )
+
+        WHEN lpp.penalty_type = 'percentage' 
+        THEN 
+          LEAST(
+            (
+              (li.principal_amount * lpp.penalty_value / 100)
+              * GREATEST(DATEDIFF(CURDATE(), li.due_date) - IFNULL(lpp.grace_days, 0), 0)
+            ),
+            IFNULL(lpp.max_penalty, 999999999)
+          )
+
+        ELSE 0
+      END AS penalty_amount
+
+    FROM loan_installments li
+    JOIN loans l ON l.id = li.loan_id
+    JOIN customers c ON c.id = l.customer_id
+    LEFT JOIN loan_plans lp ON lp.id = l.loan_plan_id
+    LEFT JOIN loan_plan_penalties lpp 
+      ON lpp.loan_plan_id = lp.id AND lpp.status = 'active'
+
+    WHERE li.status IN ('pending', 'partial')
+      AND li.due_date < CURDATE()
+  `;
+
+    const params = [];
+
+    // 🔍 Filters
+    if (filters.customer_id) {
+      query += ` AND c.id = ?`;
+      params.push(filters.customer_id);
+    }
+
+    if (filters.loan_id) {
+      query += ` AND li.loan_id = ?`;
+      params.push(filters.loan_id);
+    }
+
+    if (filters.from_date) {
+      query += ` AND li.due_date >= ?`;
+      params.push(filters.from_date);
+    }
+
+    if (filters.to_date) {
+      query += ` AND li.due_date <= ?`;
+      params.push(filters.to_date);
+    }
+
+    query += ` ORDER BY li.due_date ASC`;
+
+    const [rows] = await db.query(query, params);
+
+    return rows;
+  },
 };
 
 export default LoanInstallmentModel;

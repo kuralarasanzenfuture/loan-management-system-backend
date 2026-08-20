@@ -826,6 +826,38 @@ const LoanInstallmentService = {
       conn.release();
     }
   },
+
+  async getTodayCollections(date) {
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+
+    const data = await LoanInstallmentModel.findTodayCollections(targetDate);
+
+    const total = data.reduce((sum, row) => {
+      return sum + Number(row.paid_amount || 0);
+    }, 0);
+
+    return {
+      date: targetDate,
+      count: data.length,
+      total_collection: total,
+      data,
+    };
+  },
+
+  async getOverdueInstallmentsGlobal(filters = {}) {
+    const data =
+      await LoanInstallmentModel.findOverdueInstallmentsGlobal(filters);
+
+    const totalOverdue = data.reduce((sum, row) => {
+      return sum + Number(row.balance_amount || 0);
+    }, 0);
+
+    return {
+      count: data.length,
+      total_overdue_amount: totalOverdue,
+      data,
+    };
+  },
 };
 
 export default LoanInstallmentService;

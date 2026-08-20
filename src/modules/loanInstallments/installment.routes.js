@@ -12,9 +12,11 @@ import {
   getLoanSummary,
   calculatePenalty,
   payInstallment,
-   applyPenalty,
-   regenerateInstallments,
-   getOverdueInstallments,
+  applyPenalty,
+  regenerateInstallments,
+  getOverdueInstallments,
+  getTodayCollections,
+  getOverdueInstallmentsGlobal,
 } from "./installment.controller.js";
 
 const router = express.Router();
@@ -25,6 +27,19 @@ const router = express.Router();
 
 // Get all installments of a loan
 router.get("/loan/:loanId", verifyToken, getInstallmentsByLoan);
+
+/* ===============================
+   TODAY COLLECTIONS
+   GET /api/installments/today
+   ?date=YYYY-MM-DD (optional)
+=============================== */
+router.get("/today-collections", verifyToken, getTodayCollections);
+
+/* ===============================
+   GLOBAL OVERDUE
+   GET /api/installments/overdue
+=============================== */
+router.get("/overdue", verifyToken, getOverdueInstallmentsGlobal);
 
 // Get single installment
 router.get("/:id", verifyToken, getInstallmentById);
