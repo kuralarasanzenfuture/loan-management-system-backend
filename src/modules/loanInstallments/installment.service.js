@@ -1,5 +1,6 @@
 import { getDB } from "../../config/db.js";
 import LoanInstallmentModel from "./installment.model.js";
+import { LoanModel } from "../customersLoan/loan.model.js";
 
 const LoanInstallmentService = {
   /* =========================================================
@@ -171,7 +172,7 @@ const LoanInstallmentService = {
        * Find installment
        */
 
-      const installment = await LoanInstallmentModel.findById(id);
+      const installment = await LoanInstallmentModel.findById(conn, id);
 
       if (!installment) {
         throw {
@@ -298,7 +299,7 @@ const LoanInstallmentService = {
        * Return latest record
        */
 
-      const updated = await LoanInstallmentModel.findById(id);
+      const updated = await LoanInstallmentModel.findById(db, id);
 
       return {
         message: "Installment updated successfully",
@@ -318,14 +319,14 @@ const LoanInstallmentService = {
      Recommended endpoint for payment
   ========================================================= */
 
-  async addPayment(id, paymentAmount, user) {
+    async addPayment(id, paymentData, user) {
     const db = getDB();
     const conn = await db.getConnection();
 
     try {
       await conn.beginTransaction();
 
-      const installment = await LoanInstallmentModel.findById(id);
+      const installment = await LoanInstallmentModel.findById(conn, id);
 
       if (!installment) {
         throw {
@@ -334,7 +335,10 @@ const LoanInstallmentService = {
         };
       }
 
-      const amount = Number(paymentAmount);
+      const amount =
+        typeof paymentData === "object"
+          ? Number(paymentData.payment_amount || paymentData.paid_amount || 0)
+          : Number(paymentData);
 
       if (!Number.isFinite(amount) || amount <= 0) {
         throw {
@@ -344,9 +348,7 @@ const LoanInstallmentService = {
       }
 
       const currentPaid = Number(installment.paid_amount || 0);
-
       const totalDue = Number(installment.total_due);
-
       const newPaidAmount = Number((currentPaid + amount).toFixed(2));
 
       if (newPaidAmount > totalDue) {
@@ -359,33 +361,44 @@ const LoanInstallmentService = {
       const balanceAmount = Number((totalDue - newPaidAmount).toFixed(2));
 
       let status;
-
       if (newPaidAmount === totalDue) {
         status = "paid";
       } else {
         status = "partial";
       }
 
-      const paidDate =
-        status === "paid" ? new Date().toISOString().split("T")[0] : null;
+      let paidDate = null;
+      if (typeof paymentData === "object" && paymentData.paid_date) {
+        paidDate = paymentData.paid_date;
+      } else if (status === "paid") {
+        paidDate = new Date().toISOString().split("T")[0];
+      }
 
       await LoanInstallmentModel.update(conn, id, {
         penalty_amount: installment.penalty_amount,
-
         total_due: totalDue,
-
         paid_amount: newPaidAmount,
-
         balance_amount: balanceAmount,
-
         paid_date: paidDate,
-
         status,
       });
 
+      // If all installments for this loan are now paid, update loan status
+      const [allInsts] = await conn.query(
+        "SELECT id, status FROM loan_installments WHERE loan_id = ?",
+        [installment.loan_id],
+      );
+      const allPaid = allInsts.length > 0 && allInsts.every((i) => i.status === "paid" || (i.id === id && status === "paid"));
+      if (allPaid) {
+        await conn.query(
+          "UPDATE loans SET status = 'completed' WHERE id = ?",
+          [installment.loan_id],
+        );
+      }
+
       await conn.commit();
 
-      const updated = await LoanInstallmentModel.findById(id);
+      const updated = await LoanInstallmentModel.findById(db, id);
 
       return {
         message: "Payment recorded successfully",
@@ -477,6 +490,7 @@ const LoanInstallmentService = {
     let partialCount = 0;
     let paidCount = 0;
     let overdueCount = 0;
+    const today = new Date().toISOString().split("T")[0];
 
     for (const item of installments) {
       totalDue += Number(item.total_due || 0);
@@ -486,6 +500,10 @@ const LoanInstallmentService = {
       totalBalance += Number(item.balance_amount || 0);
 
       totalPenalty += Number(item.penalty_amount || 0);
+
+      if (item.status !== "paid" && item.due_date < today) {
+        overdueCount++;
+      }
 
       switch (item.status) {
         case "pending":
@@ -501,7 +519,6 @@ const LoanInstallmentService = {
           break;
 
         case "overdue":
-          overdueCount++;
           break;
       }
     }
@@ -525,6 +542,194 @@ const LoanInstallmentService = {
 
       overdue_count: overdueCount,
     };
+  },
+
+  async getLoanSummary(loanId) {
+    const db = getDB();
+
+    const installments = await LoanInstallmentModel.findByLoanId(loanId);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    let current_due = 0;
+    let overdue_amount = 0;
+
+    for (const item of installments) {
+      if (item.status !== "paid") {
+        if (item.due_date <= today) {
+          current_due += Number(item.balance_amount);
+
+          if (item.due_date < today) {
+            overdue_amount += Number(item.balance_amount);
+          }
+        }
+      }
+    }
+
+    return {
+      ...this.calculateSummary(installments),
+      current_due: Number(current_due.toFixed(2)),
+      overdue_amount: Number(overdue_amount.toFixed(2)),
+    };
+  },
+
+    async getNextInstallment(loanId) {
+    const installments = await LoanInstallmentModel.findByLoanId(loanId);
+
+    const next = installments.find((i) => i.status !== "paid");
+
+    if (!next) {
+      return null;
+    }
+
+    return next;
+  },
+
+  async getOverdue(loanId) {
+    const installments = await LoanInstallmentModel.findByLoanId(loanId);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    return installments.filter(
+      (i) => i.status !== "paid" && i.due_date < today,
+    );
+  },
+
+  async calculatePenalty(id) {
+    const db = getDB();
+    const installment = await LoanInstallmentModel.findById(id);
+
+    if (!installment) {
+      throw { status: 404, message: "Installment not found" };
+    }
+
+    if (installment.status === "paid") {
+      return {
+        installment_id: id,
+        days_overdue: 0,
+        penalty_amount: 0,
+        message: "Installment is already paid",
+      };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(installment.due_date);
+    dueDate.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - dueDate.getTime();
+    const daysOverdue = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+
+    if (daysOverdue <= 0) {
+      return {
+        installment_id: id,
+        days_overdue: 0,
+        penalty_amount: 0,
+        message: "Installment is not overdue",
+      };
+    }
+
+    // Fetch loan & penalty rule for plan
+    const [loanRows] = await db.query(
+      `SELECT loan_plan_id FROM loans WHERE id = ?`,
+      [installment.loan_id],
+    );
+    const loan = loanRows[0];
+
+    let penaltyAmount = 0;
+
+    if (loan?.loan_plan_id) {
+      const [penaltyRows] = await db.query(
+        `SELECT * FROM loan_plan_penalties WHERE loan_plan_id = ? AND status = 'active'`,
+        [loan.loan_plan_id],
+      );
+      const rule = penaltyRows[0];
+
+      if (rule) {
+        const graceDays = Number(rule.grace_days || 0);
+        if (daysOverdue > graceDays) {
+          if (rule.penalty_type === "fixed") {
+            penaltyAmount = Number(rule.penalty_value || 0);
+          } else if (rule.penalty_type === "percentage") {
+            const principal = Number(installment.principal_amount || 0);
+            penaltyAmount = (principal * Number(rule.penalty_value || 0)) / 100;
+          }
+          if (rule.max_penalty !== null && rule.max_penalty !== undefined) {
+            penaltyAmount = Math.min(penaltyAmount, Number(rule.max_penalty));
+          }
+        }
+      }
+    }
+
+    return {
+      installment_id: id,
+      days_overdue: daysOverdue,
+      penalty_amount: Number(penaltyAmount.toFixed(2)),
+    };
+  },
+
+  async applyPenalty(id, data = {}) {
+    const db = getDB();
+    const conn = await db.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      const installment = await LoanInstallmentModel.findById(id);
+
+      if (!installment) {
+        throw { status: 404, message: "Installment not found" };
+      }
+
+      if (installment.status === "paid") {
+        throw {
+          status: 400,
+          message: "Cannot apply penalty to paid installment",
+        };
+      }
+
+      let penalty = data.penalty_amount !== undefined ? Number(data.penalty_amount) : null;
+
+      if (penalty === null || Number.isNaN(penalty)) {
+        const calculated = await this.calculatePenalty(id);
+        penalty = calculated.penalty_amount;
+      }
+
+      if (penalty <= 0) {
+        await conn.rollback();
+        return {
+          message: "No penalty to apply",
+          installment,
+        };
+      }
+
+      const total_due = Number(
+        (Number(installment.principal_amount) + penalty).toFixed(2),
+      );
+
+      const paidAmount = Number(installment.paid_amount || 0);
+      const balance = Number((total_due - paidAmount).toFixed(2));
+
+      await LoanInstallmentModel.update(conn, id, {
+        penalty_amount: penalty,
+        total_due,
+        balance_amount: balance,
+      });
+
+      await conn.commit();
+
+      const updated = await LoanInstallmentModel.findById(id);
+
+      return {
+        message: "Penalty applied successfully",
+        installment: updated,
+      };
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
   },
 };
 

@@ -1,37 +1,67 @@
 import express from "express";
-
 import { verifyToken } from "../../middlewares/auth.middleware.js";
 
 import {
   getInstallmentsByLoan,
   getInstallmentById,
   updateInstallment,
+
+  // 🔥 NEW APIs
+  getCurrentDue,
+  getNextDue,
+  getLoanSummary,
+  calculatePenalty,
+  payInstallment,
+   applyPenalty,
+   regenerateInstallments,
+   getOverdueInstallments,
 } from "./installment.controller.js";
 
 const router = express.Router();
 
 /* =========================================================
-   GET ALL INSTALLMENTS FOR A LOAN
-
-   GET /api/loan-installments/loan/:loanId
+   BASIC INSTALLMENTS
 ========================================================= */
 
-router.get("/customer-loan/:loanId", verifyToken, getInstallmentsByLoan);
+// Get all installments of a loan
+router.get("/loan/:loanId", verifyToken, getInstallmentsByLoan);
 
-/* =========================================================
-   GET SINGLE INSTALLMENT
-
-   GET /api/loan-installments/:id
-========================================================= */
-
+// Get single installment
 router.get("/:id", verifyToken, getInstallmentById);
 
-/* =========================================================
-   UPDATE INSTALLMENT / PAYMENT
+// Update installment manually
+router.put("/:id", verifyToken, updateInstallment);
 
-   PUT /api/loan-installments/:id
+/* =========================================================
+   PAYMENT ACTION
 ========================================================= */
 
-router.put("/:id", verifyToken, updateInstallment);
+// 🔥 Pay installment (important API)
+router.post("/:id/pay", verifyToken, payInstallment);
+
+router.post("/:id/apply-penalty", verifyToken, applyPenalty);
+
+router.post("/loan/:loanId/regenerate", verifyToken, regenerateInstallments);
+
+/* =========================================================
+   CURRENT DUE & SUMMARY
+========================================================= */
+
+// 🔥 Get current due (next unpaid + penalty)
+router.get("/loan/:loanId/current-due", verifyToken, getCurrentDue);
+
+router.get("/loan/:loanId/overdue", verifyToken, getOverdueInstallments);
+
+router.get("/loan/:loanId/next-due", verifyToken, getNextDue);
+
+// 🔥 Loan summary (total paid, balance, overdue)
+router.get("/loan/:loanId/summary", verifyToken, getLoanSummary);
+
+/* =========================================================
+   PENALTY
+========================================================= */
+
+// 🔥 Calculate penalty for installment
+router.get("/:id/penalty", verifyToken, calculatePenalty);
 
 export default router;

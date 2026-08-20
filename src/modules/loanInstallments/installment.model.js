@@ -85,8 +85,12 @@ const LoanInstallmentModel = {
      GET BY ID
   ===================================================== */
 
-  async findById(id) {
-    const db = getDB();
+  async findById(conn, id) {
+    if (id === undefined) {
+      id = conn;
+      conn = null;
+    }
+    const db = conn || getDB();
 
     const [[row]] = await db.query(
       `
@@ -105,8 +109,12 @@ const LoanInstallmentModel = {
      GET ALL BY LOAN
   ===================================================== */
 
-  async findByLoanId(loanId) {
-    const db = getDB();
+  async findByLoanId(conn, loanId) {
+    if (loanId === undefined) {
+      loanId = conn;
+      conn = null;
+    }
+    const db = conn || getDB();
 
     const [rows] = await db.query(
       `
