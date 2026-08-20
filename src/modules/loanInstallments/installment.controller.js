@@ -163,6 +163,7 @@ export const calculatePenalty = async (req, res, next) => {
       data: result,
     });
   } catch (err) {
+    console.error("❌ PENALTY ERROR:", err);
     next(err);
   }
 };

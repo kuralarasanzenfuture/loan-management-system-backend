@@ -319,7 +319,7 @@ const LoanInstallmentService = {
      Recommended endpoint for payment
   ========================================================= */
 
-    async addPayment(id, paymentData, user) {
+  async addPayment(id, paymentData, user) {
     const db = getDB();
     const conn = await db.getConnection();
 
@@ -388,12 +388,15 @@ const LoanInstallmentService = {
         "SELECT id, status FROM loan_installments WHERE loan_id = ?",
         [installment.loan_id],
       );
-      const allPaid = allInsts.length > 0 && allInsts.every((i) => i.status === "paid" || (i.id === id && status === "paid"));
-      if (allPaid) {
-        await conn.query(
-          "UPDATE loans SET status = 'completed' WHERE id = ?",
-          [installment.loan_id],
+      const allPaid =
+        allInsts.length > 0 &&
+        allInsts.every(
+          (i) => i.status === "paid" || (i.id === id && status === "paid"),
         );
+      if (allPaid) {
+        await conn.query("UPDATE loans SET status = 'completed' WHERE id = ?", [
+          installment.loan_id,
+        ]);
       }
 
       await conn.commit();
@@ -573,7 +576,7 @@ const LoanInstallmentService = {
     };
   },
 
-    async getNextInstallment(loanId) {
+  async getNextInstallment(loanId) {
     const installments = await LoanInstallmentModel.findByLoanId(loanId);
 
     const next = installments.find((i) => i.status !== "paid");
@@ -595,8 +598,84 @@ const LoanInstallmentService = {
     );
   },
 
+  /*only once penelties are calculated */
+  // async calculatePenalty(id) {
+  //   const db = getDB();
+  //   const installment = await LoanInstallmentModel.findById(id);
+
+  //   if (!installment) {
+  //     throw { status: 404, message: "Installment not found" };
+  //   }
+
+  //   if (installment.status === "paid") {
+  //     return {
+  //       installment_id: id,
+  //       days_overdue: 0,
+  //       penalty_amount: 0,
+  //       message: "Installment is already paid",
+  //     };
+  //   }
+
+  //   const today = new Date();
+  //   today.setHours(0, 0, 0, 0);
+  //   const dueDate = new Date(installment.due_date);
+  //   dueDate.setHours(0, 0, 0, 0);
+
+  //   const diffTime = today.getTime() - dueDate.getTime();
+  //   const daysOverdue = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+
+  //   if (daysOverdue <= 0) {
+  //     return {
+  //       installment_id: id,
+  //       days_overdue: 0,
+  //       penalty_amount: 0,
+  //       message: "Installment is not overdue",
+  //     };
+  //   }
+
+  //   // Fetch loan & penalty rule for plan
+  //   const [loanRows] = await db.query(
+  //     `SELECT loan_plan_id FROM loans WHERE id = ?`,
+  //     [installment.loan_id],
+  //   );
+  //   const loan = loanRows[0];
+
+  //   let penaltyAmount = 0;
+
+  //   if (loan?.loan_plan_id) {
+  //     const [penaltyRows] = await db.query(
+  //       `SELECT * FROM loan_plan_penalties WHERE loan_plan_id = ? AND status = 'active'`,
+  //       [loan.loan_plan_id],
+  //     );
+  //     const rule = penaltyRows[0];
+
+  //     if (rule) {
+  //       const graceDays = Number(rule.grace_days || 0);
+  //       if (daysOverdue > graceDays) {
+  //         if (rule.penalty_type === "fixed") {
+  //           penaltyAmount = Number(rule.penalty_value || 0);
+  //         } else if (rule.penalty_type === "percentage") {
+  //           const principal = Number(installment.principal_amount || 0);
+  //           penaltyAmount = (principal * Number(rule.penalty_value || 0)) / 100;
+  //         }
+  //         if (rule.max_penalty !== null && rule.max_penalty !== undefined) {
+  //           penaltyAmount = Math.min(penaltyAmount, Number(rule.max_penalty));
+  //         }
+  //       }
+  //     }
+  //   }
+
+  //   return {
+  //     installment_id: id,
+  //     days_overdue: daysOverdue,
+  //     penalty_amount: Number(penaltyAmount.toFixed(2)),
+  //   };
+  // },
+
+  /*add every time penelties are calculated */
   async calculatePenalty(id) {
     const db = getDB();
+
     const installment = await LoanInstallmentModel.findById(id);
 
     if (!installment) {
@@ -607,54 +686,68 @@ const LoanInstallmentService = {
       return {
         installment_id: id,
         days_overdue: 0,
+        penalty_days: 0,
         penalty_amount: 0,
-        message: "Installment is already paid",
+        message: "Installment already paid",
       };
     }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
     const dueDate = new Date(installment.due_date);
     dueDate.setHours(0, 0, 0, 0);
 
-    const diffTime = today.getTime() - dueDate.getTime();
-    const daysOverdue = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+    const diff = today - dueDate;
+    const daysOverdue = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
 
-    if (daysOverdue <= 0) {
+    if (daysOverdue === 0) {
       return {
         installment_id: id,
         days_overdue: 0,
+        penalty_days: 0,
         penalty_amount: 0,
-        message: "Installment is not overdue",
+        message: "Not overdue",
       };
     }
 
-    // Fetch loan & penalty rule for plan
-    const [loanRows] = await db.query(
+    // 🔎 Get loan
+    const [[loan]] = await db.query(
       `SELECT loan_plan_id FROM loans WHERE id = ?`,
       [installment.loan_id],
     );
-    const loan = loanRows[0];
 
     let penaltyAmount = 0;
+    let graceDays = 0; // ✅ FIX
+    let penaltyDays = 0;
 
     if (loan?.loan_plan_id) {
-      const [penaltyRows] = await db.query(
-        `SELECT * FROM loan_plan_penalties WHERE loan_plan_id = ? AND status = 'active'`,
+      const [[rule]] = await db.query(
+        `SELECT * FROM loan_plan_penalties 
+       WHERE loan_plan_id = ? AND status='active'`,
         [loan.loan_plan_id],
       );
-      const rule = penaltyRows[0];
 
       if (rule) {
-        const graceDays = Number(rule.grace_days || 0);
-        if (daysOverdue > graceDays) {
+        graceDays = Number(rule.grace_days || 0);
+
+        penaltyDays = Math.max(0, daysOverdue - graceDays);
+
+        if (penaltyDays > 0) {
           if (rule.penalty_type === "fixed") {
-            penaltyAmount = Number(rule.penalty_value || 0);
-          } else if (rule.penalty_type === "percentage") {
-            const principal = Number(installment.principal_amount || 0);
-            penaltyAmount = (principal * Number(rule.penalty_value || 0)) / 100;
+            penaltyAmount = penaltyDays * Number(rule.penalty_value || 0);
           }
-          if (rule.max_penalty !== null && rule.max_penalty !== undefined) {
+
+          if (rule.penalty_type === "percentage") {
+            const base = Number(installment.balance_amount || 0);
+
+            const perDay = (base * Number(rule.penalty_value || 0)) / 100;
+
+            penaltyAmount = penaltyDays * perDay;
+          }
+
+          // cap
+          if (rule.max_penalty != null) {
             penaltyAmount = Math.min(penaltyAmount, Number(rule.max_penalty));
           }
         }
@@ -664,6 +757,7 @@ const LoanInstallmentService = {
     return {
       installment_id: id,
       days_overdue: daysOverdue,
+      penalty_days: penaltyDays,
       penalty_amount: Number(penaltyAmount.toFixed(2)),
     };
   },
@@ -688,7 +782,8 @@ const LoanInstallmentService = {
         };
       }
 
-      let penalty = data.penalty_amount !== undefined ? Number(data.penalty_amount) : null;
+      let penalty =
+        data.penalty_amount !== undefined ? Number(data.penalty_amount) : null;
 
       if (penalty === null || Number.isNaN(penalty)) {
         const calculated = await this.calculatePenalty(id);
