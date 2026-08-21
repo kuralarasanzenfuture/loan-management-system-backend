@@ -33,14 +33,26 @@ const __dirname = path.dirname(__filename);
 // ------------------------------------------------------------------
 // Global Middlewares
 // ------------------------------------------------------------------
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:5173",
+//       // `http://${getLocalIP()}:${process.env.FRONTEND_PORT}`,
+//       `http://localhost:${process.env.FRONTEND_PORT}`,
+//       process.env.FRONTEND_URL, // from .env
+//     ].filter(Boolean), // removes undefined if not set
+//     credentials: true,
+//   }),
+// );
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      // `http://${getLocalIP()}:${process.env.FRONTEND_PORT}`,
+      "http://localhost:5174",
+      "https://fpnqchft-5173.inc1.devtunnels.ms",
       `http://localhost:${process.env.FRONTEND_PORT}`,
-      process.env.FRONTEND_URL, // from .env
-    ].filter(Boolean), // removes undefined if not set
+      process.env.FRONTEND_URL,
+    ].filter(Boolean),
     credentials: true,
   }),
 );

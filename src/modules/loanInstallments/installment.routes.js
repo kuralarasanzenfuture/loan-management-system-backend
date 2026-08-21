@@ -5,8 +5,6 @@ import {
   getInstallmentsByLoan,
   getInstallmentById,
   updateInstallment,
-
-  // 🔥 NEW APIs
   getCurrentDue,
   getNextDue,
   getLoanSummary,
@@ -18,6 +16,7 @@ import {
   getTodayCollections,
   getOverdueInstallmentsGlobal,
 } from "./installment.controller.js";
+import { getLoanCollections } from "./reports/report.controller.js";
 
 const router = express.Router();
 
@@ -34,6 +33,8 @@ router.get("/loan/:loanId", verifyToken, getInstallmentsByLoan);
    ?date=YYYY-MM-DD (optional)
 =============================== */
 router.get("/today-collections", verifyToken, getTodayCollections);
+
+router.get("/reports/loan-collections", verifyToken, getLoanCollections);
 
 /* ===============================
    GLOBAL OVERDUE
