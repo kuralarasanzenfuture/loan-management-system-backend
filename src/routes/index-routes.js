@@ -14,6 +14,7 @@ import assetRoutes from "../modules/businessAssert/businessAsset.routes.js";
 import handLoanRoutes from "../modules/handLoan/handLoan.routes.js";
 import personalChitRoutes from "../modules/personalChitManagement/personalChit/personalChit.routes.js";
 import personalChitPaymentRoutes from "../modules/personalChitManagement/personalChitPayments/personalChitPayment.routes.js";
+import analyticsRoutes from "../modules/analytics/analytics.routes.js";
 
 const router = express.Router();
 router.use("/roles", roleRoutes);
@@ -30,6 +31,7 @@ router.use("/assets", assetRoutes);
 router.use("/hand-loans", handLoanRoutes);
 router.use("/personal-chits", personalChitRoutes);
 router.use("/personal-chit-payments", personalChitPaymentRoutes);
+router.use("/analytics", analyticsRoutes);
 
 router.get("/", (req, res) => {
   res.send("API Server Running");

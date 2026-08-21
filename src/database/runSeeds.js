@@ -7,6 +7,7 @@ import { SeedCompanyDetails } from "./seeds/seedCompanyDetails.js";
 import { SeedCompanyBanks } from "./seeds/seedCompanyBanks.js";
 import { SeedAssetCategories } from "./seeds/seedAssetCategories.js";
 import { SeedBusinessAssets } from "./seeds/seedBusinessAssets.js";
+import { SeedLoans } from "./seeds/seedLoans.js";
 
 const runSeeds = async () => {
   try {
@@ -18,18 +19,20 @@ const runSeeds = async () => {
     await seedRoles();
 
     await seedUsers();
-    
+
     await SeedCustomers();
-    
+
     await SeedLoanPlans();
-    
+
     await SeedCompanyDetails();
-    
+
     await SeedCompanyBanks();
-    
+
     await SeedAssetCategories();
-    
+
     await SeedBusinessAssets();
+
+    await SeedLoans();
 
     console.log("✅ Seeding completed");
   } catch (err) {
