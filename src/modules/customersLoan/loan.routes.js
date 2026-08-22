@@ -9,6 +9,9 @@ import {
   getLoanById,
   updateLoanStatus,
   deleteLoan,
+  getLoanReports,
+  getLoanInstallmentsReport,
+  getCustomerLoanSummary,
 } from "./loan.controller.js";
 
 const router = express.Router();
@@ -24,6 +27,19 @@ router.post("/", verifyToken, createLoan);
 ========================== */
 
 router.get("/", verifyToken, getAllLoans);
+
+/* ==========================
+   LOAN REPORTS
+========================== */
+
+// 🔥 Full loan dashboard report
+router.get("/loan-reports", verifyToken, getLoanReports);
+
+// 🔥 Installment-level report (table view)
+router.get("/installments-report", verifyToken, getLoanInstallmentsReport);
+
+// 🔥 Customer-wise summary
+router.get("/customer-summary", verifyToken, getCustomerLoanSummary);
 
 router.get("/:id", verifyToken, getLoanById);
 

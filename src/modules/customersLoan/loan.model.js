@@ -1,6 +1,27 @@
 import { getDB } from "../../config/db.js";
 import { getImageUrl } from "../../utils/imageUrl.js";
 
+const getDateRange = (filters = {}) => ({
+  from: filters.from_date || filters.from,
+  to: filters.to_date || filters.to,
+});
+
+const addDateFilters = (query, params, column, filters = {}) => {
+  const { from, to } = getDateRange(filters);
+
+  if (from) {
+    query += ` AND ${column} >= ?`;
+    params.push(from);
+  }
+
+  if (to) {
+    query += ` AND ${column} <= ?`;
+    params.push(to);
+  }
+
+  return query;
+};
+
 export const LoanModel = {
   /* ==========================================================
       GENERATE LOAN NUMBER
@@ -324,4 +345,179 @@ export const LoanModel = {
 
     return result.affectedRows;
   },
+
+  async getLoanSummary(filters = {}) {
+    const db = getDB();
+
+    let query = `
+    SELECT
+      COUNT(*) AS total_loans,
+      SUM(loan_amount) AS total_disbursed,
+      SUM(total_repayment) AS total_expected,
+      SUM(
+        (SELECT COALESCE(SUM(paid_amount),0)
+         FROM loan_installments li
+         WHERE li.loan_id = l.id)
+      ) AS total_collected,
+      SUM(
+        (SELECT COALESCE(SUM(balance_amount),0)
+         FROM loan_installments li
+         WHERE li.loan_id = l.id)
+      ) AS total_outstanding
+    FROM loans l
+    WHERE 1=1
+  `;
+    const params = [];
+    query = addDateFilters(query, params, "l.start_date", filters);
+
+    const [rows] = await db.query(query, params);
+    return rows[0];
+  },
+  async getStatusBreakdown(filters = {}) {
+    const db = getDB();
+
+    let query = `
+    SELECT 
+      status,
+      COUNT(*) AS count,
+      SUM(loan_amount) AS amount
+    FROM loans
+    WHERE 1=1
+  `;
+    const params = [];
+    query = addDateFilters(query, params, "start_date", filters);
+    query += " GROUP BY status";
+
+    const [rows] = await db.query(query, params);
+
+    return rows;
+  },
+
+  async getCollectionTrend(filters = {}) {
+    const db = getDB();
+
+    let query = `
+    SELECT 
+      DATE(paid_date) AS date,
+      SUM(paid_amount) AS amount
+    FROM loan_installments
+    WHERE paid_date IS NOT NULL
+  `;
+    const params = [];
+    query = addDateFilters(query, params, "paid_date", filters);
+    query += " GROUP BY DATE(paid_date) ORDER BY date ASC";
+
+    const [rows] = await db.query(query, params);
+
+    return rows;
+  },
+  async getInstallmentsReport(filters = {}) {
+    const db = getDB();
+
+    let query = `
+    SELECT
+      li.id,
+      li.loan_id,
+      li.installment_no,
+      li.due_date,
+      li.paid_date,
+      li.total_due,
+      li.paid_amount,
+      li.balance_amount,
+      li.status,
+
+      l.loan_no,
+      c.first_name,
+      c.last_name,
+      c.mobile
+
+    FROM loan_installments li
+    JOIN loans l ON l.id = li.loan_id
+    JOIN customers c ON c.id = l.customer_id
+
+    WHERE 1=1
+  `;
+
+    const params = [];
+
+    if (filters.status) {
+      query += ` AND li.status = ?`;
+      params.push(filters.status);
+    }
+
+    if (filters.from_date) {
+      query += ` AND li.due_date >= ?`;
+      params.push(filters.from_date);
+    } else if (filters.from) {
+      query += ` AND li.due_date >= ?`;
+      params.push(filters.from);
+    }
+
+    if (filters.to_date) {
+      query += ` AND li.due_date <= ?`;
+      params.push(filters.to_date);
+    } else if (filters.to) {
+      query += ` AND li.due_date <= ?`;
+      params.push(filters.to);
+    }
+
+    query += ` ORDER BY li.due_date ASC`;
+
+    const [rows] = await db.query(query, params);
+    return rows;
+  },
+
+  async getCustomerSummary(filters = {}) {
+    const db = getDB();
+
+    let loanQuery = `
+      SELECT
+        l.customer_id,
+        COUNT(*) AS total_loans,
+        COALESCE(SUM(l.loan_amount), 0) AS total_loan
+      FROM loans l
+      WHERE 1=1
+    `;
+    const loanParams = [];
+    loanQuery = addDateFilters(loanQuery, loanParams, "l.start_date", filters);
+    loanQuery += " GROUP BY l.customer_id";
+
+    let installmentQuery = `
+      SELECT
+        l.customer_id,
+        COALESCE(SUM(li.paid_amount), 0) AS total_paid,
+        COALESCE(SUM(li.balance_amount), 0) AS total_pending
+      FROM loans l
+      JOIN loan_installments li ON li.loan_id = l.id
+      WHERE 1=1
+    `;
+    const installmentParams = [];
+    installmentQuery = addDateFilters(
+      installmentQuery,
+      installmentParams,
+      "li.due_date",
+      filters,
+    );
+    installmentQuery += " GROUP BY l.customer_id";
+
+    const [rows] = await db.query(`
+    SELECT
+      c.id,
+      c.first_name,
+      c.last_name,
+      c.mobile,
+      COALESCE(ls.total_loans, 0) AS total_loans,
+      COALESCE(ls.total_loan, 0) AS total_loan,
+      COALESCE(isummary.total_paid, 0) AS total_paid,
+      COALESCE(isummary.total_pending, 0) AS total_pending
+    FROM customers c
+    LEFT JOIN (${loanQuery}) ls ON ls.customer_id = c.id
+    LEFT JOIN (${installmentQuery}) isummary ON isummary.customer_id = c.id
+    ORDER BY total_pending DESC
+  `, [...loanParams, ...installmentParams]);
+
+    return rows;
+  },
+
+  
 };

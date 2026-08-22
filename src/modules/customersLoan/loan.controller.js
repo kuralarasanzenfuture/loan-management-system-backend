@@ -94,11 +94,7 @@ export const updateLoanStatus = async (req, res, next) => {
     const { id } = await loanIdSchema.validateAsync(req.params);
     const data = await updateLoanStatusSchema.validateAsync(req.body);
 
-    const result = await LoanService.updateStatus(
-      id,
-      data.status,
-      req.user,
-    );
+    const result = await LoanService.updateStatus(id, data.status, req.user);
 
     return res.json({
       success: true,
@@ -120,6 +116,54 @@ export const deleteLoan = async (req, res, next) => {
     const result = await LoanService.delete(id);
 
     return res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* =========================================================
+   FULL LOAN REPORT DASHBOARD
+========================================================= */
+export const getLoanReports = async (req, res, next) => {
+  try {
+    const result = await LoanService.getLoanReports(req.query);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* =========================================================
+   INSTALLMENT REPORT (TABLE)
+========================================================= */
+export const getLoanInstallmentsReport = async (req, res, next) => {
+  try {
+    const result = await LoanService.getInstallmentsReport(req.query);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* =========================================================
+   CUSTOMER SUMMARY
+========================================================= */
+export const getCustomerLoanSummary = async (req, res, next) => {
+  try {
+    const result = await LoanService.getCustomerSummary(req.query);
+
+    res.json({
       success: true,
       ...result,
     });

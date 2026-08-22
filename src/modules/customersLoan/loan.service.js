@@ -343,7 +343,8 @@ export const LoanService = {
        Only allowed before any payment has been made.
     ----------------------------------------- */
 
-      const planChanged = Number(loan.loan_plan_id) !== Number(data.loan_plan_id);
+      const planChanged =
+        Number(loan.loan_plan_id) !== Number(data.loan_plan_id);
       const amountChanged =
         Number(loan.loan_amount) !== Number(data.loan_amount);
       const dateChanged =
@@ -504,5 +505,46 @@ export const LoanService = {
     } finally {
       conn.release();
     }
+  },
+
+  /* =====================================================
+     MAIN DASHBOARD REPORT
+  ===================================================== */
+  async getLoanReports(filters) {
+    const summary = await LoanModel.getLoanSummary(filters);
+    const statusBreakdown = await LoanModel.getStatusBreakdown(filters);
+    const collectionTrend = await LoanModel.getCollectionTrend(filters);
+
+    return {
+      summary,
+      charts: {
+        status_breakdown: statusBreakdown,
+        collection_trend: collectionTrend,
+      },
+    };
+  },
+
+  /* =====================================================
+     INSTALLMENT REPORT
+  ===================================================== */
+  async getInstallmentsReport(filters) {
+    const data = await LoanModel.getInstallmentsReport(filters);
+
+    return {
+      count: data.length,
+      data,
+    };
+  },
+
+  /* =====================================================
+     CUSTOMER SUMMARY
+  ===================================================== */
+  async getCustomerSummary(filters) {
+    const data = await LoanModel.getCustomerSummary(filters);
+
+    return {
+      count: data.length,
+      data,
+    };
   },
 };
