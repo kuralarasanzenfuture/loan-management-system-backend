@@ -539,8 +539,8 @@ export const LoanService = {
   /* =====================================================
      CUSTOMER SUMMARY
   ===================================================== */
-  async getCustomerSummary(filters) {
-    const data = await LoanModel.getCustomerSummary(filters);
+  async getCustomerReports(filters) {
+    const data = await LoanModel.getCustomerReports(filters);
 
     return {
       count: data.length,

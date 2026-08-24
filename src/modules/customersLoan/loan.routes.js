@@ -11,7 +11,7 @@ import {
   deleteLoan,
   getLoanReports,
   getLoanInstallmentsReport,
-  getCustomerLoanSummary,
+  getCustomerLoanReports,
 } from "./loan.controller.js";
 
 const router = express.Router();
@@ -39,7 +39,7 @@ router.get("/loan-reports", verifyToken, getLoanReports);
 router.get("/installments-report", verifyToken, getLoanInstallmentsReport);
 
 // 🔥 Customer-wise summary
-router.get("/customer-summary", verifyToken, getCustomerLoanSummary);
+router.get("/customer-loan-reports", verifyToken, getCustomerLoanReports);
 
 router.get("/:id", verifyToken, getLoanById);
 

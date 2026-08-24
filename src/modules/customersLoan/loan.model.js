@@ -21,6 +21,23 @@ const addDateFilters = (query, params, column, filters = {}) => {
 
   return query;
 };
+const addDateFilter = (column, filters, params) => {
+  let sql = "";
+
+  if (filters.from) {
+    sql += ` AND ${column} >= ?`;
+    params.push(filters.from);
+  }
+
+  if (filters.to) {
+    sql += ` AND ${column} <= ?`;
+    params.push(filters.to);
+  }
+
+  return sql;
+};
+
+const year = new Date().getFullYear();
 
 export const LoanModel = {
   /* ==========================================================
@@ -39,7 +56,7 @@ export const LoanModel = {
 
     const next = row ? row.id + 1 : 1;
 
-    return `LN-${String(next).padStart(6, "0")}`;
+    return `LN-${year}-${String(next).padStart(6, "0")}`;
   },
 
   /* ==========================================================
@@ -467,57 +484,136 @@ export const LoanModel = {
     return rows;
   },
 
-  async getCustomerSummary(filters = {}) {
+  async getCustomerReports(filters = {}) {
     const db = getDB();
 
-    let loanQuery = `
-      SELECT
-        l.customer_id,
-        COUNT(*) AS total_loans,
-        COALESCE(SUM(l.loan_amount), 0) AS total_loan
-      FROM loans l
-      WHERE 1=1
-    `;
-    const loanParams = [];
-    loanQuery = addDateFilters(loanQuery, loanParams, "l.start_date", filters);
-    loanQuery += " GROUP BY l.customer_id";
+    const page = Number(filters.page || 1);
+    const limit = Number(filters.limit || 10);
+    const offset = (page - 1) * limit;
 
-    let installmentQuery = `
+    /* =========================================
+       LOAN SUBQUERY
+    ========================================= */
+    let loanParams = [];
+    let loanFilter = "WHERE 1=1";
+
+    if (filters.status) {
+      loanFilter += " AND status = ?";
+      loanParams.push(filters.status);
+    }
+
+    loanFilter += addDateFilter("start_date", filters, loanParams);
+
+    /* =========================================
+       PAYMENT SUBQUERY
+    ========================================= */
+    let paymentParams = [];
+    let paymentFilter = "WHERE 1=1";
+
+    if (filters.status) {
+      paymentFilter += " AND l.status = ?";
+      paymentParams.push(filters.status);
+    }
+
+    paymentFilter += addDateFilter("li.paid_date", filters, paymentParams);
+
+    /* =========================================
+       MAIN QUERY
+    ========================================= */
+    const [data] = await db.query(
+      `
       SELECT
-        l.customer_id,
-        COALESCE(SUM(li.paid_amount), 0) AS total_paid,
-        COALESCE(SUM(li.balance_amount), 0) AS total_pending
-      FROM loans l
-      JOIN loan_installments li ON li.loan_id = l.id
-      WHERE 1=1
-    `;
-    const installmentParams = [];
-    installmentQuery = addDateFilters(
-      installmentQuery,
-      installmentParams,
-      "li.due_date",
-      filters,
+        c.id AS customer_id,
+        CONCAT(c.first_name, ' ', c.last_name) AS name,
+        c.mobile,
+
+        COALESCE(l.total_loans, 0) AS total_loans,
+        COALESCE(l.total_amount, 0) AS total_amount,
+        COALESCE(l.total_repayment, 0) AS total_repayment,
+        COALESCE(p.total_paid, 0) AS total_paid,
+
+        COALESCE(l.total_repayment, 0) - COALESCE(p.total_paid, 0) AS total_pending
+
+      FROM customers c
+
+      LEFT JOIN (
+        SELECT
+          customer_id,
+          COUNT(*) AS total_loans,
+          SUM(loan_amount) AS total_amount,
+          SUM(total_repayment) AS total_repayment
+        FROM loans
+        ${loanFilter}
+        GROUP BY customer_id
+      ) l ON l.customer_id = c.id
+
+      LEFT JOIN (
+        SELECT
+          l.customer_id,
+          SUM(li.paid_amount) AS total_paid
+        FROM loans l
+        JOIN loan_installments li ON li.loan_id = l.id
+        ${paymentFilter}
+        GROUP BY l.customer_id
+      ) p ON p.customer_id = c.id
+
+      ORDER BY total_pending DESC
+      LIMIT ? OFFSET ?
+      `,
+      [...loanParams, ...paymentParams, limit, offset],
     );
-    installmentQuery += " GROUP BY l.customer_id";
 
-    const [rows] = await db.query(`
-    SELECT
-      c.id,
-      c.first_name,
-      c.last_name,
-      c.mobile,
-      COALESCE(ls.total_loans, 0) AS total_loans,
-      COALESCE(ls.total_loan, 0) AS total_loan,
-      COALESCE(isummary.total_paid, 0) AS total_paid,
-      COALESCE(isummary.total_pending, 0) AS total_pending
-    FROM customers c
-    LEFT JOIN (${loanQuery}) ls ON ls.customer_id = c.id
-    LEFT JOIN (${installmentQuery}) isummary ON isummary.customer_id = c.id
-    ORDER BY total_pending DESC
-  `, [...loanParams, ...installmentParams]);
+    /* =========================================
+       COUNT (for pagination)
+    ========================================= */
+    const [[countRow]] = await db.query(`
+      SELECT COUNT(*) as total FROM customers
+    `);
 
-    return rows;
+    /* =========================================
+       SUMMARY
+    ========================================= */
+    const [summaryRows] = await db.query(
+      `
+      SELECT
+        COUNT(DISTINCT c.id) AS total_customers,
+        COALESCE(SUM(l.total_loans), 0) AS total_loans,
+        COALESCE(SUM(l.total_amount), 0) AS total_amount,
+        COALESCE(SUM(p.total_paid), 0) AS total_paid,
+        COALESCE(SUM(l.total_repayment), 0) - COALESCE(SUM(p.total_paid), 0) AS total_pending
+
+      FROM customers c
+
+      LEFT JOIN (
+        SELECT
+          customer_id,
+          COUNT(*) AS total_loans,
+          SUM(loan_amount) AS total_amount,
+          SUM(total_repayment) AS total_repayment
+        FROM loans
+        ${loanFilter}
+        GROUP BY customer_id
+      ) l ON l.customer_id = c.id
+
+      LEFT JOIN (
+        SELECT
+          l.customer_id,
+          SUM(li.paid_amount) AS total_paid
+        FROM loans l
+        JOIN loan_installments li ON li.loan_id = l.id
+        ${paymentFilter}
+        GROUP BY l.customer_id
+      ) p ON p.customer_id = c.id
+      `,
+      [...loanParams, ...paymentParams],
+    );
+
+    return {
+      page,
+      limit,
+      total_records: countRow.total,
+      data,
+      summary: summaryRows[0],
+    };
   },
-
-  
 };

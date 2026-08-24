@@ -159,9 +159,9 @@ export const getLoanInstallmentsReport = async (req, res, next) => {
 /* =========================================================
    CUSTOMER SUMMARY
 ========================================================= */
-export const getCustomerLoanSummary = async (req, res, next) => {
+export const getCustomerLoanReports = async (req, res, next) => {
   try {
-    const result = await LoanService.getCustomerSummary(req.query);
+    const result = await LoanService.getCustomerReports(req.query);
 
     res.json({
       success: true,
