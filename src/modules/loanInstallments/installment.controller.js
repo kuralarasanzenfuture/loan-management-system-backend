@@ -232,9 +232,12 @@ export const regenerateInstallments = async (req, res, next) => {
 =============================== */
 export const getTodayCollections = async (req, res, next) => {
   try {
-    const { date } = req.query;
+    const { date, status } = req.query;
 
-    const result = await LoanInstallmentService.getTodayCollections(date);
+    const result = await LoanInstallmentService.getTodayCollections(
+      date,
+      status,
+    );
 
     res.json({
       success: true,

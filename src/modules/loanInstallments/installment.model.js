@@ -218,18 +218,53 @@ const LoanInstallmentModel = {
     return result.affectedRows > 0;
   },
 
-  async findTodayCollections(date) {
+  //   async findTodayCollections(date) {
+  //   const db = getDB();
+
+  //   const [rows] = await db.query(
+  //     `
+  //     SELECT
+  //       li.id,
+  //       li.loan_id,
+  //       li.installment_no,
+  //       li.due_date,
+  //       li.total_due,
+  //       li.paid_amount,
+  //       li.balance_amount,
+  //       li.status,
+
+  //       c.id AS customer_id,
+  //       c.first_name,
+  //       c.last_name,
+  //       c.mobile
+
+  //     FROM loan_installments li
+  //     JOIN loans l ON l.id = li.loan_id
+  //     JOIN customers c ON c.id = l.customer_id
+
+  //     WHERE DATE(li.due_date) = ?
+  //       AND li.status IN ('pending', 'partial', 'overdue')
+
+  //     ORDER BY li.due_date ASC
+  //     `,
+  //     [date],
+  //   );
+
+  //   return rows;
+  // },
+
+  async findTodayCollections(date, status) {
     const db = getDB();
 
-    const [rows] = await db.query(
-      `
+    let query = `
     SELECT 
       li.id,
       li.loan_id,
       li.installment_no,
       li.due_date,
+      li.total_due,
       li.paid_amount,
-      li.paid_date,
+      li.balance_amount,
       li.status,
 
       c.id AS customer_id,
@@ -241,13 +276,31 @@ const LoanInstallmentModel = {
     JOIN loans l ON l.id = li.loan_id
     JOIN customers c ON c.id = l.customer_id
 
-    WHERE DATE(li.paid_date) = ?
-      AND li.status IN ('paid', 'partial')
+    WHERE DATE(li.due_date) = ?
+  `;
 
-    ORDER BY li.paid_date DESC
-    `,
-      [date],
-    );
+    const params = [date];
+
+    /* ==========================
+     STATUS FILTER (UI MAPPING)
+  ========================== */
+
+    if (status && status !== "all") {
+      if (status === "pending") {
+        query += ` AND li.status IN ('pending', 'overdue')`;
+      } else if (status === "partial") {
+        query += ` AND li.status = 'partial'`;
+      } else if (status === "paid") {
+        query += ` AND li.status = 'paid'`;
+      }
+    } else {
+      // default (All but exclude paid if you want real collection)
+      query += ` AND li.status IN ('pending', 'partial', 'overdue')`;
+    }
+
+    query += ` ORDER BY li.due_date ASC`;
+
+    const [rows] = await db.query(query, params);
 
     return rows;
   },

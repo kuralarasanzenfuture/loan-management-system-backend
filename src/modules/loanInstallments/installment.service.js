@@ -827,10 +827,13 @@ const LoanInstallmentService = {
     }
   },
 
-  async getTodayCollections(date) {
+  async getTodayCollections(date, status = "pending") {
     const targetDate = date || new Date().toISOString().slice(0, 10);
 
-    const data = await LoanInstallmentModel.findTodayCollections(targetDate);
+    const data = await LoanInstallmentModel.findTodayCollections(
+      targetDate,
+      status,
+    );
 
     const total = data.reduce((sum, row) => {
       return sum + Number(row.paid_amount || 0);
