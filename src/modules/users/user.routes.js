@@ -9,6 +9,7 @@ import {
   getAllUsers,
   getUserById,
   updateUser,
+  updateUserStatus,
   deleteUser,
   checkUsername,
   checkEmail,
@@ -33,6 +34,7 @@ router.get("/check-mobile/:mobile", checkMobile);
 router.get("/:id", verifyToken, getUserById);
 
 router.put("/:id", verifyToken, updateUser);
+router.patch("/:id/status", verifyToken, updateUserStatus);
 
 router.delete("/:id", verifyToken, deleteUser);
 

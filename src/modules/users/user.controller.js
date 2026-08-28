@@ -4,6 +4,8 @@ import {
   registerSchema,
   loginSchema,
   updateUserSchema,
+  updateUserStatusSchema,
+  userIdParamSchema,
 } from "./user.validation.js";
 
 const ACCESS_EXP = "15m";
@@ -146,7 +148,8 @@ export const getAllUsers = async (req, res, next) => {
 
 export const getUserById = async (req, res, next) => {
   try {
-    const user = await UserService.getById(req.params.id);
+    const { id } = await userIdParamSchema.validateAsync(req.params);
+    const user = await UserService.getById(id);
     res.json(user);
   } catch (e) {
     next(e);
@@ -155,9 +158,21 @@ export const getUserById = async (req, res, next) => {
 
 export const updateUser = async (req, res, next) => {
   try {
+    const { id } = await userIdParamSchema.validateAsync(req.params);
     const data = await updateUserSchema.validateAsync(req.body);
-    const user = await UserService.update(req.params.id, data);
+    const user = await UserService.update(id, data);
     res.json(user);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const updateUserStatus = async (req, res, next) => {
+  try {
+    const { id } = await userIdParamSchema.validateAsync(req.params);
+    const { status } = await updateUserStatusSchema.validateAsync(req.body);
+    const result = await UserService.update(id, { status });
+    res.json(result);
   } catch (e) {
     next(e);
   }
@@ -165,7 +180,8 @@ export const updateUser = async (req, res, next) => {
 
 export const deleteUser = async (req, res, next) => {
   try {
-    const result = await UserService.delete(req.params.id);
+    const { id } = await userIdParamSchema.validateAsync(req.params);
+    const result = await UserService.delete(id);
     res.json(result);
   } catch (e) {
     next(e);

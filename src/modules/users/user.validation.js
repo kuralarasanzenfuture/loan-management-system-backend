@@ -26,7 +26,7 @@ export const registerSchema = Joi.object({
   }),
   email: Joi.string()
     .email()
-    .required()
+    // .required()
     .custom(toLower, "lowercase email")
     .messages({
       "string.email": "Please provide a valid email address",
@@ -41,9 +41,10 @@ export const registerSchema = Joi.object({
       "string.max": "Mobile number must not exceed 15 digits",
       "string.pattern.base": "Mobile number must contain only digits",
     }),
-  role_id: Joi.number().required().messages({
+  role_id: Joi.number().integer().positive().required().messages({
     "any.required": "Role ID is required",
   }),
+  status: Joi.string().valid("active", "inactive", "blocked").default("active"),
 });
 
 export const loginSchema = Joi.object({
@@ -83,7 +84,7 @@ export const updateUserSchema = Joi.object({
   password: Joi.string().min(6).messages({
     "string.min": "Password must be at least 6 characters",
   }),
-  role_id: Joi.number().messages({
+  role_id: Joi.number().integer().positive().messages({
     "number.base": "Role ID must be a number",
   }),
   status: Joi.string()
@@ -92,3 +93,11 @@ export const updateUserSchema = Joi.object({
       "any.only": "Status must be one of: active, inactive, blocked",
     }),
 }).min(1);
+
+export const userIdParamSchema = Joi.object({
+  id: Joi.number().integer().positive().required(),
+});
+
+export const updateUserStatusSchema = Joi.object({
+  status: Joi.string().valid("active", "inactive", "blocked").required(),
+}).required();

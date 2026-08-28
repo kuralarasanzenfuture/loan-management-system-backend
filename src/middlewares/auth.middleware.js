@@ -42,7 +42,10 @@ export const verifyToken = async (req, res, next) => {
 
     // ✅ 4. Check user
     const [[user]] = await db.query(
-      `SELECT id, status FROM users WHERE id = ?`,
+      `SELECT u.id, u.status, u.role_id, r.name AS role_name
+       FROM users u
+       JOIN roles r ON r.id = u.role_id
+       WHERE u.id = ?`,
       [decoded.id],
     );
 
@@ -82,6 +85,8 @@ export const verifyToken = async (req, res, next) => {
     req.user = {
       id: decoded.id,
       session_id,
+      role_id: user.role_id,
+      role: user.role_name,
     };
 
     next();
