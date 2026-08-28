@@ -203,12 +203,17 @@ const runMigrations = async () => {
   log.success(`Executed ${executedCount} migrations`);
 };
 
-runMigrations()
-  .then(() => {
-    console.log("🎉 Migration completed.");
-    process.exit(0);
-  })
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+export default runMigrations;
+
+// Allow CLI execution without running migrations when imported by the server.
+if (process.argv[1]?.endsWith("runMigrations.js")) {
+  runMigrations()
+    .then(() => {
+      console.log("🎉 Migration completed.");
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}
