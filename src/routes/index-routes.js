@@ -17,6 +17,7 @@ import personalChitPaymentRoutes from "../modules/personalChitManagement/persona
 import analyticsRoutes from "../modules/analytics/analytics.routes.js";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes.js";
 import modulesRoutes from "../modules/module/modules.routes.js";
+import modulesActionsRoutes from "../modules/moduleActions/moduleActions.routes.js";
 
 const router = express.Router();
 router.use("/roles", roleRoutes);
@@ -36,6 +37,7 @@ router.use("/personal-chit-payments", personalChitPaymentRoutes);
 router.use("/analytics", analyticsRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/modules", modulesRoutes);
+router.use("/modules-actions", modulesActionsRoutes);
 
 router.use((req, res, next) => {
   res.status(404).send("Route not found");
