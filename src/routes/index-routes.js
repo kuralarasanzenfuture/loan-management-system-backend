@@ -16,6 +16,7 @@ import personalChitRoutes from "../modules/personalChitManagement/personalChit/p
 import personalChitPaymentRoutes from "../modules/personalChitManagement/personalChitPayments/personalChitPayment.routes.js";
 import analyticsRoutes from "../modules/analytics/analytics.routes.js";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes.js";
+import modulesRoutes from "../modules/module/modules.routes.js";
 
 const router = express.Router();
 router.use("/roles", roleRoutes);
@@ -34,6 +35,11 @@ router.use("/personal-chits", personalChitRoutes);
 router.use("/personal-chit-payments", personalChitPaymentRoutes);
 router.use("/analytics", analyticsRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/modules", modulesRoutes);
+
+router.use((req, res, next) => {
+  res.status(404).send("Route not found");
+});
 
 router.get("/", (req, res) => {
   res.send("API Server Running");

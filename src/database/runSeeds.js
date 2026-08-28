@@ -8,6 +8,9 @@ import { SeedCompanyBanks } from "./seeds/seedCompanyBanks.js";
 import { SeedAssetCategories } from "./seeds/seedAssetCategories.js";
 import { SeedBusinessAssets } from "./seeds/seedBusinessAssets.js";
 import { SeedLoans } from "./seeds/seedLoans.js";
+import { SeedModulesTable } from "./seeds/permissions/seedModules.js";
+import { SeedModuleActionsTable } from "./seeds/permissions/seedModuleActions.js";
+import { SeedRolePermissionsTable } from "./seeds/permissions/seedRolePermissions.js";
 
 const runSeeds = async () => {
   try {
@@ -33,6 +36,12 @@ const runSeeds = async () => {
     await SeedBusinessAssets();
 
     await SeedLoans();
+
+    await SeedModulesTable();
+
+    await SeedModuleActionsTable();
+
+    await SeedRolePermissionsTable();
 
     console.log("✅ Seeding completed");
   } catch (err) {

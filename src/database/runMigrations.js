@@ -153,10 +153,6 @@ const runMigrations = async () => {
       continue;
     }
 
-    if (already === "failed") {
-      throw new Error(`Fix failed migration first: ${file}`);
-    }
-
     const filePath = path.join(MIGRATIONS_DIR, file);
     const sql = fs.readFileSync(filePath, "utf-8");
 
