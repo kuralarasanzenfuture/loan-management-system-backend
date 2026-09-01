@@ -66,12 +66,9 @@ export const updateUserSchema = Joi.object({
       "string.min": "Username must be at least 3 characters",
       "string.max": "Username must not exceed 30 characters",
     }),
-  email: Joi.string()
-    .email()
-    .custom(toLower, "lowercase email")
-    .messages({
-      "string.email": "Please provide a valid email address",
-    }),
+  email: Joi.string().email().custom(toLower, "lowercase email").messages({
+    "string.email": "Please provide a valid email address",
+  }),
   mobile: Joi.string()
     .min(10)
     .max(15)
@@ -87,11 +84,9 @@ export const updateUserSchema = Joi.object({
   role_id: Joi.number().integer().positive().messages({
     "number.base": "Role ID must be a number",
   }),
-  status: Joi.string()
-    .valid("active", "inactive", "blocked")
-    .messages({
-      "any.only": "Status must be one of: active, inactive, blocked",
-    }),
+  status: Joi.string().valid("active", "inactive", "blocked").messages({
+    "any.only": "Status must be one of: active, inactive, blocked",
+  }),
 }).min(1);
 
 export const userIdParamSchema = Joi.object({
@@ -100,4 +95,9 @@ export const userIdParamSchema = Joi.object({
 
 export const updateUserStatusSchema = Joi.object({
   status: Joi.string().valid("active", "inactive", "blocked").required(),
+}).required();
+
+export const changePasswordSchema = Joi.object({
+  current_password: Joi.string().required(),
+  new_password: Joi.string().min(6).max(72).required(),
 }).required();

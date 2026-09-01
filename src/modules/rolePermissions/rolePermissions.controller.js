@@ -37,6 +37,8 @@ export const getRolePermissions = async (req, res, next) => {
 
     const data = await RolePermissionService.getByRole(roleId);
 
+    // console.table(data);
+
     res.status(200).json({
       success: true,
       count: data.length,
@@ -52,6 +54,8 @@ export const getTreeRolePermissions = async (req, res, next) => {
     const { roleId } = await roleIdParamSchema.validateAsync(req.params);
 
     const data = await RolePermissionService.getTreeByRole(roleId);
+
+    // console.table(data);
 
     res.status(200).json({
       success: true,

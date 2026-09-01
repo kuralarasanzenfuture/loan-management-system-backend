@@ -458,6 +458,65 @@ export const UserService = {
     return { message: "User deleted successfully" };
   },
 
+  async changeOwnPassword(userId, currentPassword, newPassword) {
+    const db = getDB();
+    const conn = await db.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      /* =========================================
+         1. CHECK USER
+      ========================================= */
+
+      const user = await UserModel.findById(userId);
+
+      if (!user) {
+        throw {
+          status: 404,
+          message: "User not found",
+        };
+      }
+
+      /* =========================================
+         2. VERIFY CURRENT PASSWORD
+      ========================================= */
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+
+      if (!isMatch) {
+        throw {
+          status: 401,
+          message: "Current password is incorrect",
+        };
+      }
+
+      /* =========================================
+         3. HASH NEW PASSWORD
+      ========================================= */
+
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      /* =========================================
+         4. UPDATE PASSWORD
+      ========================================= */
+
+      await UserModel.updatePassword(conn, userId, hashedPassword);
+
+      await conn.commit();
+
+      return {
+        success: true,
+        message: "Password changed successfully",
+      };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  },
+
   async logout(userId, session_id) {
     const db = getDB();
 

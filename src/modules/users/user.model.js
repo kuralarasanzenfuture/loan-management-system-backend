@@ -180,4 +180,17 @@ export const UserModel = {
 
     return user;
   },
+
+  async updatePassword(conn, id, hashedPassword) {
+    const [result] = await conn.query(
+      `
+      UPDATE users
+      SET password_hash = ?
+      WHERE id = ?
+      `,
+      [hashedPassword, id],
+    );
+
+    return result.affectedRows > 0;
+  },
 };

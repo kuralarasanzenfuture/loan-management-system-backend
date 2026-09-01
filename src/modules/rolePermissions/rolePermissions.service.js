@@ -14,8 +14,9 @@ const RolePermissionService = {
       transactionStarted = true;
 
       const isAdmin = user?.role?.trim().toUpperCase() === "ADMIN";
+      const isSuperAdmin = user?.role?.trim().toUpperCase() === "SUPER_ADMIN";
 
-      if (!isAdmin) {
+      if (!isAdmin && !isSuperAdmin) {
         throw {
           status: 403,
           message: "Only ADMIN users can modify role permissions",

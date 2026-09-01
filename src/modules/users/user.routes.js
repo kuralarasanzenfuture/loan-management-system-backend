@@ -10,6 +10,7 @@ import {
   getUserById,
   updateUser,
   updateUserStatus,
+  changeOwnPassword,
   deleteUser,
   checkUsername,
   checkEmail,
@@ -30,6 +31,8 @@ router.get("/", verifyToken, getAllUsers);
 router.get("/check-username/:username", checkUsername);
 router.get("/check-email/:email", checkEmail);
 router.get("/check-mobile/:mobile", checkMobile);
+
+router.patch("/change-password", verifyToken, changeOwnPassword);
 
 router.get("/:id", verifyToken, getUserById);
 

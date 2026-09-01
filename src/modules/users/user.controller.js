@@ -6,6 +6,7 @@ import {
   updateUserSchema,
   updateUserStatusSchema,
   userIdParamSchema,
+  changePasswordSchema,
 } from "./user.validation.js";
 
 const ACCESS_EXP = "15m";
@@ -85,8 +86,7 @@ export const refreshToken = async (req, res, next) => {
 
     const refresh_token =
       body.refresh_token || body.refreshToken || cookies.refresh_token;
-    const session_id =
-      body.session_id || body.sessionId || cookies.session_id;
+    const session_id = body.session_id || body.sessionId || cookies.session_id;
 
     if (!refresh_token || !session_id) {
       throw { status: 400, message: "Missing token or session" };
@@ -172,6 +172,16 @@ export const updateUserStatus = async (req, res, next) => {
     const { id } = await userIdParamSchema.validateAsync(req.params);
     const { status } = await updateUserStatusSchema.validateAsync(req.body);
     const result = await UserService.update(id, { status });
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const changeOwnPassword = async (req, res, next) => {
+  try {
+    const { current_password, new_password } = await changePasswordSchema.validateAsync(req.body);
+    const result = await UserService.changeOwnPassword(req.user.id, current_password, new_password);
     res.json(result);
   } catch (e) {
     next(e);
