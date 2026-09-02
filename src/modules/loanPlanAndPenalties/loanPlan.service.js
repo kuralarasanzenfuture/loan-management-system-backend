@@ -2,6 +2,36 @@ import { getDB } from "../../config/db.js";
 import { LoanPlanModel, LoanPlanPenaltyModel } from "./loanPlan.model.js";
 
 export const LoanPlanService = {
+  async generatePlanCode(conn, frequency, tenure) {
+    // 🔥 get last sequence
+    const [rows] = await conn.query(
+      `
+    SELECT plan_code 
+    FROM loan_plans
+    WHERE collection_frequency = ?
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+      [frequency],
+    );
+
+    let nextNumber = 1;
+
+    if (rows.length) {
+      const lastCode = rows[0].plan_code;
+      // example: LP-MONTHLY-12-005
+
+      const parts = lastCode.split("-");
+      const lastNumber = parseInt(parts[3]) || 0;
+
+      nextNumber = lastNumber + 1;
+    }
+
+    const padded = String(nextNumber).padStart(3, "0");
+
+    return `LP-${frequency.toUpperCase()}-${tenure}-${padded}`;
+  },
+
   async create(data, user) {
     const db = getDB();
     const conn = await db.getConnection();
@@ -21,8 +51,15 @@ export const LoanPlanService = {
         throw { status: 400, message: "Loan plan name already exists" };
       }
 
+      const planCode = await LoanPlanService.generatePlanCode(
+        conn,
+        data.collection_frequency,
+        data.tenure,
+      );
+
       const loanPlanId = await LoanPlanModel.create(conn, {
         ...data,
+        plan_code: planCode,
         created_by: user.id,
       });
 
@@ -244,7 +281,6 @@ export const LoanPlanService = {
     );
 
     if (loanUsage.count > 0) {
-
       /* ❗ DO NOT DELETE — in-use plan: soft-deactivate instead */
       await LoanPlanModel.update(db, id, {
         status: "inactive",

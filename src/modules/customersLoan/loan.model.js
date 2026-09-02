@@ -616,4 +616,20 @@ export const LoanModel = {
       summary: summaryRows[0],
     };
   },
+
+  async hasPayments(conn, loanId) {
+    const [[row]] = await conn.query(
+      `
+    SELECT EXISTS (
+      SELECT 1
+      FROM loan_installments
+      WHERE loan_id = ?
+        AND paid_amount > 0
+    ) AS has_payment
+    `,
+      [loanId],
+    );
+
+    return Boolean(row.has_payment);
+  },
 };

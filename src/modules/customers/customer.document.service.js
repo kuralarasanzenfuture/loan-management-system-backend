@@ -39,8 +39,19 @@ export const CustomerDocumentService = {
             document_number,
             file_name
           ) VALUES (?,?,?,?)
+          ON DUPLICATE KEY UPDATE
+            document_number = ?,
+            file_name = ?,
+            uploaded_at = CURRENT_TIMESTAMP
           `,
-          [customerId, fieldName, documentNumber, relativePath],
+          [
+            customerId,
+            fieldName,
+            documentNumber,
+            relativePath,
+            documentNumber,
+            relativePath,
+          ],
         );
         count++;
       }

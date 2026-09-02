@@ -127,6 +127,9 @@ export const CustomerService = {
   },
 
   async update(id, data, files = {}) {
+    console.log("Updating customer with ID:", id);
+    // console.log("Data received for update:", data);
+    console.log("Files received for update:", files);
     const customer = await CustomerModel.findById(id);
 
     if (!customer)

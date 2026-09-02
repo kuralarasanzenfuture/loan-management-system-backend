@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 /* =====================================================
    BASE PATH
 ===================================================== */
-const basePath = path.join(__dirname, "../../uploads/company-banks");
+const basePath = path.join(__dirname, "../uploads/company-banks");
 
 /* =====================================================
    FOLDERS

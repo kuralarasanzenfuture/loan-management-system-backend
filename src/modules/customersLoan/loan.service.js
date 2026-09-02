@@ -468,6 +468,45 @@ export const LoanService = {
       DELETE
   ========================================================== */
 
+  // async delete(id) {
+  //   const db = getDB();
+  //   const conn = await db.getConnection();
+
+  //   try {
+  //     await conn.beginTransaction();
+
+  //     const loan = await LoanModel.findById(conn, id);
+
+  //     if (!loan) {
+  //       throw {
+  //         status: 404,
+  //         message: "Loan not found",
+  //       };
+  //     }
+
+  //     const affected = await LoanModel.delete(conn, id);
+
+  //     if (!affected) {
+  //       throw {
+  //         status: 400,
+  //         message: "Loan deletion failed",
+  //       };
+  //     }
+
+  //     await conn.commit();
+
+  //     return {
+  //       message: "Loan deleted successfully",
+  //       id,
+  //     };
+  //   } catch (err) {
+  //     await conn.rollback();
+  //     throw err;
+  //   } finally {
+  //     conn.release();
+  //   }
+  // },
+
   async delete(id) {
     const db = getDB();
     const conn = await db.getConnection();
@@ -475,6 +514,9 @@ export const LoanService = {
     try {
       await conn.beginTransaction();
 
+      /* =====================================================
+       1. CHECK LOAN EXISTS
+    ===================================================== */
       const loan = await LoanModel.findById(conn, id);
 
       if (!loan) {
@@ -484,6 +526,23 @@ export const LoanService = {
         };
       }
 
+      /* =====================================================
+       2. CHECK WHETHER ANY PAYMENT EXISTS
+    ===================================================== */
+      const hasPayment = await LoanModel.hasPayments(conn, id);
+
+      if (hasPayment) {
+        throw {
+          status: 400,
+          message:
+            "Loan cannot be deleted because payment has already been made",
+        };
+      }
+
+      /* =====================================================
+       3. DELETE LOAN
+       loan_installments will cascade-delete
+    ===================================================== */
       const affected = await LoanModel.delete(conn, id);
 
       if (!affected) {

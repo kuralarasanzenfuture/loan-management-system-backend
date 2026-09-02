@@ -2,7 +2,7 @@ import Joi from "joi";
 
 export const createLoanPlanSchema = Joi.object({
   plan_name: Joi.string().trim().required(),
-  plan_code: Joi.string().trim().uppercase().required(),
+  // plan_code: Joi.string().trim().uppercase().required(),
   collection_frequency: Joi.string()
     .trim()
     .lowercase()
