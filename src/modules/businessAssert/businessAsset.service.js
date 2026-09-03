@@ -1,5 +1,6 @@
 import { getDB } from "../../config/db.js";
 import BusinessAssetModel from "./businessAsset.model.js";
+import { deleteFile } from "../../utils/fileHelper.js";
 
 const BusinessAssetService = {
   async create(data, user) {
@@ -67,6 +68,16 @@ const BusinessAssetService = {
       });
 
       await conn.commit();
+
+      // If new image uploaded or removed, delete the old physical image file
+      if (
+        data.image !== undefined &&
+        existing.image &&
+        existing.image !== data.image
+      ) {
+        deleteFile(existing.image);
+      }
+
       return { message: "Asset updated" };
     } catch (err) {
       await conn.rollback();
@@ -89,6 +100,11 @@ const BusinessAssetService = {
     if (!existing) throw { status: 404, message: "Asset not found" };
 
     await BusinessAssetModel.delete(id);
+
+    if (existing.image) {
+      deleteFile(existing.image);
+    }
+
     return { message: "Asset deleted" };
   },
 };

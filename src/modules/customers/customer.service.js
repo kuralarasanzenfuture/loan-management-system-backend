@@ -1,6 +1,7 @@
 import { CustomerModel } from "./customer.model.js";
 import { CustomerDocumentService } from "./customer.document.service.js";
 import { getDB } from "../../config/db.js";
+import { deleteFile } from "../../utils/fileHelper.js";
 
 async function generateCustomerNo(conn) {
   const year = new Date().getFullYear();
@@ -127,10 +128,73 @@ export const CustomerService = {
   },
 
   async update(id, data, files = {}) {
-    console.log("Updating customer with ID:", id);
-    // console.log("Data received for update:", data);
-    console.log("Files received for update:", files);
-    const customer = await CustomerModel.findById(id);
+    const customer = await CustomerModel.findByIdRaw(id);
+
+    if (!customer)
+      throw {
+        status: 404,
+        message: "Customer not found",
+      };
+
+    const db = getDB();
+    const conn = await db.getConnection();
+
+    let oldPhotoToDelete = null;
+
+    try {
+      await conn.beginTransaction();
+
+      const cleanData = sanitizeCustomerData(data);
+
+      // 🔹 1. If a new photo is uploaded, mark old photo for deletion
+      if (files.photo?.[0]?.filename) {
+        cleanData.photo = `uploads/customers/photo/${files.photo[0].filename}`;
+        if (customer.photo && customer.photo !== cleanData.photo) {
+          oldPhotoToDelete = customer.photo;
+        }
+      }
+
+      await CustomerModel.update(conn, id, cleanData);
+
+      // 🔹 2. Insert or replace documents (document service deletes old files on replace)
+      let docsUploaded = 0;
+      const hasDocFiles =
+        files &&
+        Object.keys(files).some((key) => !["photo"].includes(key));
+
+      if (hasDocFiles) {
+        docsUploaded = await CustomerDocumentService.insertDocuments(
+          conn,
+          id,
+          files,
+          data,
+        );
+      }
+
+      await conn.commit();
+
+      // 🔹 3. After successful commit, delete replaced old photo from disk
+      if (oldPhotoToDelete) {
+        deleteFile(oldPhotoToDelete);
+      }
+
+      const updatedCustomer = await this.getById(id);
+
+      return {
+        message: "Customer updated successfully",
+        documents_uploaded: docsUploaded,
+        data: updatedCustomer,
+      };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  },
+
+  async delete(id) {
+    const customer = await CustomerModel.findByIdRaw(id);
 
     if (!customer)
       throw {
@@ -144,39 +208,21 @@ export const CustomerService = {
     try {
       await conn.beginTransaction();
 
-      const cleanData = sanitizeCustomerData(data);
+      // 1. Delete all associated documents and their physical files
+      await CustomerDocumentService.deleteAllByCustomerId(id, conn);
 
-      // 🔹 1. Update customer fields
-      if (files.photo?.[0]?.filename) {
-        cleanData.photo = `uploads/customers/photo/${files.photo[0].filename}`;
-      }
-      await CustomerModel.update(conn, id, cleanData);
-
-      // 🔹 2. Insert new documents if any (excluding "photo" which is handled above)
-      let docsUploaded = 0;
-      const hasDocFiles =
-        files &&
-        Object.keys(files).some(
-          (key) => !["photo"].includes(key),
-        );
-
-      if (hasDocFiles) {
-        docsUploaded = await CustomerDocumentService.insertDocuments(
-          conn,
-          id,
-          files,
-          data,
-        );
-      }
+      // 2. Delete customer record from database
+      await CustomerModel.remove(id, conn);
 
       await conn.commit();
 
-      const updatedCustomer = await this.getById(id);
+      // 3. Delete physical photo file from disk if present
+      if (customer.photo) {
+        deleteFile(customer.photo);
+      }
 
       return {
-        message: "Customer updated",
-        documents_uploaded: docsUploaded,
-        data: updatedCustomer,
+        message: "Customer and all associated files deleted permanently",
       };
     } catch (err) {
       await conn.rollback();
@@ -186,19 +232,37 @@ export const CustomerService = {
     }
   },
 
-  async delete(id) {
-    const customer = await CustomerModel.findById(id);
+  /**
+   * Delete only the customer's photo
+   */
+  async deletePhoto(id) {
+    const customer = await CustomerModel.findByIdRaw(id);
 
-    if (!customer)
-      throw {
-        status: 404,
-        message: "Customer not found",
-      };
+    if (!customer) {
+      throw { status: 404, message: "Customer not found" };
+    }
 
-    await CustomerModel.remove(id);
+    if (customer.photo) {
+      deleteFile(customer.photo);
+      await CustomerModel.updatePhoto(null, id, null);
+    }
 
     return {
-      message: "Customer deleted",
+      message: "Customer photo deleted successfully",
     };
+  },
+
+  /**
+   * Delete a single document by its id
+   */
+  async deleteDocument(customerId, documentId) {
+    return await CustomerDocumentService.deleteDocument(customerId, documentId);
+  },
+
+  /**
+   * Delete a single document by its document type
+   */
+  async deleteDocumentByType(customerId, documentType) {
+    return await CustomerDocumentService.deleteDocumentByType(customerId, documentType);
   },
 };

@@ -101,6 +101,25 @@ WHERE id=?
     return row ? { ...row, photo: getImageUrl(row.photo) } : null;
   },
 
+  /**
+   * Returns customer record with raw stored photo path (untransformed)
+   * Essential for exact file deletion operations.
+   */
+  async findByIdRaw(id, conn) {
+    const db = conn || getDB();
+
+    const [[row]] = await db.query(
+      `
+SELECT *
+FROM customers
+WHERE id=?
+`,
+      [id],
+    );
+
+    return row || null;
+  },
+
   async update(conn, id, data) {
     const db = conn || getDB();
 
@@ -154,15 +173,35 @@ WHERE id=?
     );
   },
 
-  async remove(id) {
-    const db = getDB();
+  /**
+   * Directly updates photo column (can be set to string or null).
+   */
+  async updatePhoto(conn, id, photoPath = null) {
+    const db = conn || getDB();
 
     const [result] = await db.query(
       `
-UPDATE customers
-SET status='inactive'
-WHERE id=?
-`,
+      UPDATE customers
+      SET photo = ?
+      WHERE id = ?
+      `,
+      [photoPath, id],
+    );
+
+    return result.affectedRows;
+  },
+
+  /**
+   * Permanently deletes customer from database.
+   */
+  async remove(id, conn) {
+    const db = conn || getDB();
+
+    const [result] = await db.query(
+      `
+      DELETE FROM customers
+      WHERE id = ?
+      `,
       [id],
     );
 

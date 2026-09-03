@@ -2,15 +2,15 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { ensureDirExists } from "../utils/fileHelper.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// BASE PATH
+// BASE UPLOADS PATH
 const basePath = path.join(__dirname, "../uploads/customers");
 
 // DOCUMENT FOLDERS
-
 const folders = [
   "photo",
   "aadhaar",
@@ -26,68 +26,68 @@ const folders = [
   "other",
 ];
 
-// CREATE FOLDERS
-
+// AUTO CREATE FOLDERS
+ensureDirExists(basePath);
 folders.forEach((folder) => {
   const folderPath = path.join(basePath, folder);
-
-  if (!fs.existsSync(folderPath)) {
-    fs.mkdirSync(folderPath, {
-      recursive: true,
-    });
-  }
+  ensureDirExists(folderPath);
 });
 
-// STORAGE
-
+// STORAGE CONFIGURATION
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = file.fieldname;
 
     if (!folders.includes(folder)) {
-      return cb(new Error("Invalid document type"), false);
+      return cb(new Error(`Invalid document type: ${folder}`), false);
     }
 
-    cb(null, path.join(basePath, folder));
+    const dest = path.join(basePath, folder);
+    ensureDirExists(dest);
+    cb(null, dest);
   },
 
   filename: (req, file, cb) => {
-    const cleanName = file.originalname
-      .replace(/\s+/g, "_")
-      .replace(/[^a-zA-Z0-9._-]/g, "");
-
-    cb(null, Date.now() + "-" + cleanName);
+    const extension = path.extname(file.originalname).toLowerCase();
+    const filename = `file-${Date.now()}-${Math.round(Math.random() * 1000000)}${extension}`;
+    cb(null, filename);
   },
 });
 
-// FILTER
-
+// FILE FILTER
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpg|jpeg|png|pdf/;
+  const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".pdf"];
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+  ];
 
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+  const ext = path.extname(file.originalname).toLowerCase();
+  const isValidExt = allowedExtensions.includes(ext);
+  const isValidMime = allowedMimeTypes.includes(file.mimetype);
 
-  if (ext) {
+  if (isValidExt && isValidMime) {
     cb(null, true);
   } else {
-    cb(new Error("Only JPG PNG PDF allowed"));
+    const error = new Error("Only JPG, JPEG, PNG, WEBP and PDF files are allowed");
+    error.status = 400;
+    cb(error, false);
   }
 };
 
-// MULTER
-
+// MULTER INSTANCE
 const upload = multer({
   storage,
-
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024, // 5 MB maximum
   },
-
   fileFilter,
 });
 
-// FIELDS
-
+// MULTI-FIELD EXPORT
 export const customerUpload = upload.fields([
   { name: "photo", maxCount: 1 },
   { name: "aadhaar", maxCount: 1 },

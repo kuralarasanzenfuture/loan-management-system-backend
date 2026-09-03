@@ -1,7 +1,7 @@
 import multer from "multer";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { ensureDirExists } from "../utils/fileHelper.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,17 +19,13 @@ const folders = [
   "favicon",
   "stamp",
   "signature",
-  //   "documents/gst",
-  //   "documents/pan",
-  //   "documents/registration",
-  //   "documents/license",
+  "others",
 ];
 
+ensureDirExists(basePath);
 folders.forEach((folder) => {
   const fullPath = path.join(basePath, folder);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true });
-  }
+  ensureDirExists(fullPath);
 });
 
 /* =====================================================
@@ -55,35 +51,17 @@ const storage = multer.diskStorage({
       case "signature_image":
         folder = "signature";
         break;
-
-      //   case "gst_certificate":
-      //     folder = "documents/gst";
-      //     break;
-
-      //   case "pan_document":
-      //     folder = "documents/pan";
-      //     break;
-
-      //   case "registration_document":
-      //     folder = "documents/registration";
-      //     break;
-
-      //   case "license_document":
-      //     folder = "documents/license";
-      //     break;
     }
 
-    cb(null, path.join(basePath, folder));
+    const dest = path.join(basePath, folder);
+    ensureDirExists(dest);
+    cb(null, dest);
   },
 
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-
-    const clean = file.originalname
-      .replace(/\s+/g, "_")
-      .replace(/[^a-zA-Z0-9._-]/g, "");
-
-    cb(null, Date.now() + "-" + clean);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filename = `file-${Date.now()}-${Math.round(Math.random() * 1000000)}${ext}`;
+    cb(null, filename);
   },
 });
 
@@ -91,12 +69,16 @@ const storage = multer.diskStorage({
    FILTER
 ===================================================== */
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpg|jpeg|png|pdf/;
+  const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".pdf"];
+  const ext = path.extname(file.originalname).toLowerCase();
 
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-
-  if (ext) cb(null, true);
-  else cb(new Error("Only JPG, PNG, PDF allowed"));
+  if (allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    const error = new Error("Only JPG, JPEG, PNG, WEBP and PDF files are allowed");
+    error.status = 400;
+    cb(error, false);
+  }
 };
 
 /* =====================================================
@@ -111,9 +93,4 @@ export const companyUpload = multer({
   { name: "favicon", maxCount: 1 },
   { name: "stamp_image", maxCount: 1 },
   { name: "signature_image", maxCount: 1 },
-
-  //   { name: "gst_certificate", maxCount: 1 },
-  //   { name: "pan_document", maxCount: 1 },
-  //   { name: "registration_document", maxCount: 1 },
-  //   { name: "license_document", maxCount: 1 },
 ]);

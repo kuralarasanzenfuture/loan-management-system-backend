@@ -3,6 +3,7 @@ import {
   createCustomerSchema,
   updateCustomerSchema,
 } from "./customer.validation.js";
+import { cleanupUploadedFiles } from "../../utils/fileHelper.js";
 
 export const createCustomer = async (req, res, next) => {
   try {
@@ -18,6 +19,8 @@ export const createCustomer = async (req, res, next) => {
       message: result.message,
     });
   } catch (err) {
+    // 🧹 Delete newly uploaded files on error to prevent orphan files
+    cleanupUploadedFiles(req.files);
     next(err);
   }
 };
@@ -66,6 +69,8 @@ export const updateCustomer = async (req, res, next) => {
       message: result.message,
     });
   } catch (err) {
+    // 🧹 Delete newly uploaded files on error to prevent orphan files
+    cleanupUploadedFiles(req.files);
     next(err);
   }
 };
@@ -77,6 +82,51 @@ export const deleteCustomer = async (req, res, next) => {
     res.json({
       success: true,
       id: req.params.id,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteCustomerPhoto = async (req, res, next) => {
+  try {
+    const result = await CustomerService.deletePhoto(req.params.id);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteCustomerDocument = async (req, res, next) => {
+  try {
+    const result = await CustomerService.deleteDocument(
+      req.params.id,
+      req.params.documentId,
+    );
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteCustomerDocumentByType = async (req, res, next) => {
+  try {
+    const result = await CustomerService.deleteDocumentByType(
+      req.params.id,
+      req.params.documentType,
+    );
+
+    res.json({
+      success: true,
       ...result,
     });
   } catch (err) {

@@ -1,7 +1,4 @@
-// export const errorHandler = (err, req, res, next) => {
-//   console.error(err);
-//   res.status(500).json({ message: "Server error" });
-// };
+import multer from "multer";
 
 export const errorHandler = (err, req, res, next) => {
   console.error("❌ ERROR:", {
@@ -16,6 +13,20 @@ export const errorHandler = (err, req, res, next) => {
   // 🔥 decide status
   let status = err.status || 500;
   let message = err.message || "Internal Server Error";
+
+  // 🔥 Multer Errors
+  if (err instanceof multer.MulterError || err.name === "MulterError") {
+    status = 400;
+    if (err.code === "LIMIT_FILE_SIZE") {
+      message = "File too large. Maximum size allowed is 5 MB.";
+    } else if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      message = `Unexpected file field: ${err.field}`;
+    } else if (err.code === "LIMIT_FILE_COUNT") {
+      message = `Too many files uploaded for field: ${err.field}`;
+    } else {
+      message = err.message;
+    }
+  }
 
   // 🔥 Joi validation error
   if (err.isJoi) {

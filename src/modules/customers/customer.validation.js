@@ -78,3 +78,50 @@ export const validateIdParam = (req, res, next) => {
   }
   next();
 };
+
+export const documentIdParamSchema = Joi.object({
+  id: Joi.number().integer().positive().required(),
+  documentId: Joi.number().integer().positive().required(),
+});
+
+export const validateDocumentIdParam = (req, res, next) => {
+  const { error } = documentIdParamSchema.validate(req.params);
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message,
+    });
+  }
+  next();
+};
+
+export const documentTypeParamSchema = Joi.object({
+  id: Joi.number().integer().positive().required(),
+  documentType: Joi.string()
+    .valid(
+      "photo",
+      "aadhaar",
+      "pan",
+      "driving_license",
+      "voter_id",
+      "passport",
+      "ration_card",
+      "bank_passbook",
+      "salary_slip",
+      "electricity_bill",
+      "gas_bill",
+      "other",
+    )
+    .required(),
+});
+
+export const validateDocumentTypeParam = (req, res, next) => {
+  const { error } = documentTypeParamSchema.validate(req.params);
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message,
+    });
+  }
+  next();
+};

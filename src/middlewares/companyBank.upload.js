@@ -1,7 +1,7 @@
 import multer from "multer";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { ensureDirExists } from "../utils/fileHelper.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,11 +16,10 @@ const basePath = path.join(__dirname, "../uploads/company-banks");
 ===================================================== */
 const folders = ["qr"];
 
+ensureDirExists(basePath);
 folders.forEach((folder) => {
   const fullPath = path.join(basePath, folder);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true });
-  }
+  ensureDirExists(fullPath);
 });
 
 /* =====================================================
@@ -28,25 +27,25 @@ folders.forEach((folder) => {
 ===================================================== */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let folder = "documents/other";
+    let folder = "qr";
 
     switch (file.fieldname) {
       case "upi_qr_code":
         folder = "qr";
         break;
+      default:
+        folder = "qr";
     }
 
-    cb(null, path.join(basePath, folder));
+    const dest = path.join(basePath, folder);
+    ensureDirExists(dest);
+    cb(null, dest);
   },
 
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-
-    const cleanName = file.originalname
-      .replace(/\s+/g, "_")
-      .replace(/[^a-zA-Z0-9._-]/g, "");
-
-    cb(null, Date.now() + "-" + cleanName);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filename = `file-${Date.now()}-${Math.round(Math.random() * 1000000)}${ext}`;
+    cb(null, filename);
   },
 });
 
@@ -54,12 +53,16 @@ const storage = multer.diskStorage({
    FILE FILTER
 ===================================================== */
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpg|jpeg|png|pdf/;
+  const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".pdf"];
+  const ext = path.extname(file.originalname).toLowerCase();
 
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-
-  if (ext) cb(null, true);
-  else cb(new Error("Only JPG, PNG, PDF allowed"));
+  if (allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    const error = new Error("Only JPG, JPEG, PNG, WEBP and PDF files are allowed");
+    error.status = 400;
+    cb(error, false);
+  }
 };
 
 /* =====================================================

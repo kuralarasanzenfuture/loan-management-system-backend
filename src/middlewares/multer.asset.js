@@ -1,7 +1,7 @@
 import multer from "multer";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { ensureDirExists } from "../utils/fileHelper.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,26 +12,21 @@ const __dirname = path.dirname(__filename);
 const uploadPath = path.join(__dirname, "../uploads/assets");
 
 /* CREATE FOLDER */
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
+ensureDirExists(uploadPath);
 
 /* =====================================================
    STORAGE
 ===================================================== */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    ensureDirExists(uploadPath);
     cb(null, uploadPath);
   },
 
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-
-    const clean = file.originalname
-      .replace(/\s+/g, "_")
-      .replace(/[^a-zA-Z0-9._-]/g, "");
-
-    cb(null, Date.now() + "-" + clean);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filename = `file-${Date.now()}-${Math.round(Math.random() * 1000000)}${ext}`;
+    cb(null, filename);
   },
 });
 
@@ -39,12 +34,24 @@ const storage = multer.diskStorage({
    FILTER (IMAGE ONLY)
 ===================================================== */
 const fileFilter = (req, file, cb) => {
-  const allowed = ["image/jpeg", "image/png", "image/jpg"];
+  const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+  ];
 
-  if (allowed.includes(file.mimetype)) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const isValidExt = allowedExtensions.includes(ext);
+  const isValidMime = allowedMimeTypes.includes(file.mimetype);
+
+  if (isValidExt && isValidMime) {
     cb(null, true);
   } else {
-    cb(new Error("Only JPG, JPEG, PNG allowed"), false);
+    const error = new Error("Only JPG, JPEG, PNG and WEBP images are allowed");
+    error.status = 400;
+    cb(error, false);
   }
 };
 
