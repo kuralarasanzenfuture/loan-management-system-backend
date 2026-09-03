@@ -599,11 +599,13 @@ export const LoanService = {
      CUSTOMER SUMMARY
   ===================================================== */
   async getCustomerReports(filters) {
-    const data = await LoanModel.getCustomerReports(filters);
+    const result = await LoanModel.getCustomerReports(filters);
 
     return {
-      count: data.length,
-      data,
+      count: Array.isArray(result?.data) ? result.data.length : 0,
+      total_records: result?.total_records ?? 0,
+      summary: result?.summary || null,
+      data: result?.data || [],
     };
   },
 };

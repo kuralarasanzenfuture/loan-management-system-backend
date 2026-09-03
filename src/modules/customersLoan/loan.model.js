@@ -385,6 +385,17 @@ export const LoanModel = {
     WHERE 1=1
   `;
     const params = [];
+
+    if (filters.status) {
+      query += ` AND l.status = ?`;
+      params.push(filters.status);
+    }
+
+    if (filters.loan_no && typeof filters.loan_no === "string" && filters.loan_no.trim()) {
+      query += ` AND l.loan_no LIKE ?`;
+      params.push(`%${filters.loan_no.trim()}%`);
+    }
+
     query = addDateFilters(query, params, "l.start_date", filters);
 
     const [rows] = await db.query(query, params);
@@ -402,6 +413,17 @@ export const LoanModel = {
     WHERE 1=1
   `;
     const params = [];
+
+    if (filters.status) {
+      query += ` AND status = ?`;
+      params.push(filters.status);
+    }
+
+    if (filters.loan_no && typeof filters.loan_no === "string" && filters.loan_no.trim()) {
+      query += ` AND loan_no LIKE ?`;
+      params.push(`%${filters.loan_no.trim()}%`);
+    }
+
     query = addDateFilters(query, params, "start_date", filters);
     query += " GROUP BY status";
 
@@ -415,14 +437,26 @@ export const LoanModel = {
 
     let query = `
     SELECT 
-      DATE(paid_date) AS date,
-      SUM(paid_amount) AS amount
-    FROM loan_installments
-    WHERE paid_date IS NOT NULL
+      DATE(li.paid_date) AS date,
+      SUM(li.paid_amount) AS amount
+    FROM loan_installments li
+    JOIN loans l ON l.id = li.loan_id
+    WHERE li.paid_date IS NOT NULL
   `;
     const params = [];
-    query = addDateFilters(query, params, "paid_date", filters);
-    query += " GROUP BY DATE(paid_date) ORDER BY date ASC";
+
+    if (filters.status) {
+      query += ` AND l.status = ?`;
+      params.push(filters.status);
+    }
+
+    if (filters.loan_no && typeof filters.loan_no === "string" && filters.loan_no.trim()) {
+      query += ` AND l.loan_no LIKE ?`;
+      params.push(`%${filters.loan_no.trim()}%`);
+    }
+
+    query = addDateFilters(query, params, "li.paid_date", filters);
+    query += " GROUP BY DATE(li.paid_date) ORDER BY date ASC";
 
     const [rows] = await db.query(query, params);
 
@@ -444,6 +478,7 @@ export const LoanModel = {
       li.status,
 
       l.loan_no,
+      c.id AS customer_id,
       c.first_name,
       c.last_name,
       c.mobile
@@ -462,20 +497,67 @@ export const LoanModel = {
       params.push(filters.status);
     }
 
-    if (filters.from_date) {
-      query += ` AND li.due_date >= ?`;
-      params.push(filters.from_date);
-    } else if (filters.from) {
-      query += ` AND li.due_date >= ?`;
-      params.push(filters.from);
+    const fromDate = filters.from_date || filters.from;
+    if (fromDate) {
+      query += ` AND DATE(li.due_date) >= ?`;
+      params.push(fromDate);
     }
 
-    if (filters.to_date) {
-      query += ` AND li.due_date <= ?`;
-      params.push(filters.to_date);
-    } else if (filters.to) {
-      query += ` AND li.due_date <= ?`;
-      params.push(filters.to);
+    const toDate = filters.to_date || filters.to;
+    if (toDate) {
+      query += ` AND DATE(li.due_date) <= ?`;
+      params.push(toDate);
+    }
+
+    // GLOBAL SEARCH (matches Customer Name, Mobile, Loan Number, Installment No)
+    if (filters.search && typeof filters.search === "string" && filters.search.trim()) {
+      const sp = `%${filters.search.trim()}%`;
+      query += ` AND (
+        CONCAT_WS(' ', c.first_name, c.last_name) LIKE ?
+        OR c.first_name LIKE ?
+        OR c.last_name LIKE ?
+        OR c.mobile LIKE ?
+        OR l.loan_no LIKE ?
+        OR li.installment_no = ?
+      )`;
+      params.push(sp, sp, sp, sp, sp, filters.search.trim());
+    }
+
+    // DEDICATED SEARCH FILTERS
+    if (filters.customer_name && typeof filters.customer_name === "string" && filters.customer_name.trim()) {
+      const np = `%${filters.customer_name.trim()}%`;
+      query += ` AND (
+        CONCAT_WS(' ', c.first_name, c.last_name) LIKE ?
+        OR c.first_name LIKE ?
+        OR c.last_name LIKE ?
+      )`;
+      params.push(np, np, np);
+    }
+
+    const phoneFilter = filters.phone || filters.mobile;
+    if (phoneFilter && typeof phoneFilter === "string" && phoneFilter.trim()) {
+      query += " AND c.mobile LIKE ?";
+      params.push(`%${phoneFilter.trim()}%`);
+    }
+
+    if (filters.loan_no && typeof filters.loan_no === "string" && filters.loan_no.trim()) {
+      query += " AND l.loan_no LIKE ?";
+      params.push(`%${filters.loan_no.trim()}%`);
+    }
+
+    if (filters.installment_no) {
+      query += " AND li.installment_no = ?";
+      params.push(filters.installment_no);
+    }
+
+    if (filters.customer_id) {
+      query += " AND c.id = ?";
+      params.push(filters.customer_id);
+    }
+
+    if (filters.loan_id) {
+      query += " AND li.loan_id = ?";
+      params.push(filters.loan_id);
     }
 
     query += ` ORDER BY li.due_date ASC`;
@@ -488,7 +570,7 @@ export const LoanModel = {
     const db = getDB();
 
     const page = Number(filters.page || 1);
-    const limit = Number(filters.limit || 10);
+    const limit = Number(filters.limit || 10000);
     const offset = (page - 1) * limit;
 
     /* =========================================
@@ -518,14 +600,56 @@ export const LoanModel = {
     paymentFilter += addDateFilter("li.paid_date", filters, paymentParams);
 
     /* =========================================
+       CUSTOMER FILTER
+    ========================================= */
+    let customerParams = [];
+    let customerFilter = "WHERE 1=1";
+
+    if (filters.search && typeof filters.search === "string" && filters.search.trim()) {
+      const sp = `%${filters.search.trim()}%`;
+      customerFilter += ` AND (
+        CONCAT_WS(' ', c.first_name, c.last_name) LIKE ?
+        OR c.first_name LIKE ?
+        OR c.last_name LIKE ?
+        OR c.mobile LIKE ?
+        OR c.customer_no LIKE ?
+      )`;
+      customerParams.push(sp, sp, sp, sp, sp);
+    }
+
+    if (filters.customer_name && typeof filters.customer_name === "string" && filters.customer_name.trim()) {
+      const np = `%${filters.customer_name.trim()}%`;
+      customerFilter += ` AND (
+        CONCAT_WS(' ', c.first_name, c.last_name) LIKE ?
+        OR c.first_name LIKE ?
+        OR c.last_name LIKE ?
+      )`;
+      customerParams.push(np, np, np);
+    }
+
+    const phoneFilter = filters.phone || filters.mobile;
+    if (phoneFilter && typeof phoneFilter === "string" && phoneFilter.trim()) {
+      customerFilter += " AND c.mobile LIKE ?";
+      customerParams.push(`%${phoneFilter.trim()}%`);
+    }
+
+    if (filters.customer_id) {
+      customerFilter += " AND c.id = ?";
+      customerParams.push(filters.customer_id);
+    }
+
+    /* =========================================
        MAIN QUERY
     ========================================= */
     const [data] = await db.query(
       `
       SELECT
         c.id AS customer_id,
-        CONCAT(c.first_name, ' ', c.last_name) AS name,
+        CONCAT_WS(' ', c.first_name, c.last_name) AS name,
+        c.first_name,
+        c.last_name,
         c.mobile,
+        c.customer_no,
 
         COALESCE(l.total_loans, 0) AS total_loans,
         COALESCE(l.total_amount, 0) AS total_amount,
@@ -557,18 +681,21 @@ export const LoanModel = {
         GROUP BY l.customer_id
       ) p ON p.customer_id = c.id
 
+      ${customerFilter}
+
       ORDER BY total_pending DESC
       LIMIT ? OFFSET ?
       `,
-      [...loanParams, ...paymentParams, limit, offset],
+      [...loanParams, ...paymentParams, ...customerParams, limit, offset],
     );
 
     /* =========================================
        COUNT (for pagination)
     ========================================= */
-    const [[countRow]] = await db.query(`
-      SELECT COUNT(*) as total FROM customers
-    `);
+    const [[countRow]] = await db.query(
+      `SELECT COUNT(*) as total FROM customers c ${customerFilter}`,
+      customerParams
+    );
 
     /* =========================================
        SUMMARY
@@ -604,16 +731,18 @@ export const LoanModel = {
         ${paymentFilter}
         GROUP BY l.customer_id
       ) p ON p.customer_id = c.id
+
+      ${customerFilter}
       `,
-      [...loanParams, ...paymentParams],
+      [...loanParams, ...paymentParams, ...customerParams],
     );
 
     return {
       page,
       limit,
-      total_records: countRow.total,
+      total_records: countRow?.total ?? 0,
       data,
-      summary: summaryRows[0],
+      summary: summaryRows[0] || null,
     };
   },
 
