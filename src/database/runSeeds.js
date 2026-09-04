@@ -11,6 +11,7 @@ import { SeedLoans } from "./seeds/seedLoans.js";
 import { SeedModulesTable } from "./seeds/permissions/seedModules.js";
 import { SeedModuleActionsTable } from "./seeds/permissions/seedModuleActions.js";
 import { SeedRolePermissionsTable } from "./seeds/permissions/seedRolePermissions.js";
+import { SeedInterestOnlyLoanPlansTable } from "./seeds/seedInterestOnlyLoanPlans.js";
 
 const runSeeds = async () => {
   try {
@@ -42,6 +43,8 @@ const runSeeds = async () => {
     await SeedModuleActionsTable();
 
     await SeedRolePermissionsTable();
+
+    await SeedInterestOnlyLoanPlansTable();
 
     console.log("✅ Seeding completed");
   } catch (err) {

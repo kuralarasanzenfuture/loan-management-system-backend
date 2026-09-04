@@ -20,6 +20,7 @@ import modulesRoutes from "../modules/module/modules.routes.js";
 import modulesActionsRoutes from "../modules/moduleActions/moduleActions.routes.js";
 import rolePermissionsRoutes from "../modules/rolePermissions/rolePermissions.routes.js";
 import userPermissionsRoutes from "../modules/userPermissions/userPermissions.routes.js";
+import interestOnlyLoanPlanRoutes from "../modules/interestLoanPlan/interestLoanPlan.routes.js";
 
 const router = express.Router();
 router.use("/roles", roleRoutes);
@@ -42,6 +43,7 @@ router.use("/modules", modulesRoutes);
 router.use("/modules-actions", modulesActionsRoutes);
 router.use("/role-permissions", rolePermissionsRoutes);
 router.use("/user-permissions", userPermissionsRoutes);
+router.use("/interest-only-loan-plans", interestOnlyLoanPlanRoutes);
 
 router.use((req, res, next) => {
   res.status(404).send("Route not found");
