@@ -78,13 +78,13 @@ export const createCompanySchema = Joi.object({
 
   // ── Contact ──────────────────────────────────────
   phone: Joi.string()
-    .pattern(/^[0-9]{10}$/)
+    .pattern(/^(\+?[0-9]{1,4}[\s-]?)?[0-9]{6,14}$/)
     .allow(null, "")
     .empty("")
     .custom(trim),
 
   alternate_phone: Joi.string()
-    .pattern(/^[0-9]{10}$/)
+    .pattern(/^(\+?[0-9]{1,4}[\s-]?)?[0-9]{6,14}$/)
     .allow(null, "")
     .empty("")
     .custom(trim),
@@ -140,7 +140,7 @@ export const createCompanySchema = Joi.object({
   instagram_url: Joi.string().allow(null, "").empty("").custom(urlSanitizer),
   youtube_url: Joi.string().allow(null, "").empty("").custom(urlSanitizer),
   whatsapp_number: Joi.string()
-    .pattern(/^[0-9]{10,15}$/)
+    .pattern(/^(\+?[0-9]{1,4}[\s-]?)?[0-9]{6,14}$/)
     .allow(null, "")
     .empty("")
     .custom(trim),
