@@ -21,6 +21,9 @@ import modulesActionsRoutes from "../modules/moduleActions/moduleActions.routes.
 import rolePermissionsRoutes from "../modules/rolePermissions/rolePermissions.routes.js";
 import userPermissionsRoutes from "../modules/userPermissions/userPermissions.routes.js";
 import interestOnlyLoanPlanRoutes from "../modules/interestLoanPlan/interestLoanPlan.routes.js";
+import interestOnlyLoanRoutes from "../modules/interestOnlyLoan/loan/interestLoan.routes.js";
+import interestOnlyScheduleRoutes from "../modules/interestOnlyLoan/schedule/schedule.routes.js";
+import interestOnlyPaymentRoutes from "../modules/interestOnlyLoan/payment/payment.routes.js";
 
 const router = express.Router();
 router.use("/roles", roleRoutes);
@@ -44,6 +47,10 @@ router.use("/modules-actions", modulesActionsRoutes);
 router.use("/role-permissions", rolePermissionsRoutes);
 router.use("/user-permissions", userPermissionsRoutes);
 router.use("/interest-only-loan-plans", interestOnlyLoanPlanRoutes);
+router.use("/interest-only-loans", interestOnlyLoanRoutes);
+router.use("/interest-only-schedules", interestOnlyScheduleRoutes);
+router.use("/interest-only-payments", interestOnlyPaymentRoutes);
+
 
 router.use((req, res, next) => {
   res.status(404).send("Route not found");
