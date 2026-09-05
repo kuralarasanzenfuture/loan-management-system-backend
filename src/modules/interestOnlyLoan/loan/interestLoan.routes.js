@@ -7,6 +7,8 @@ import {
   getLoansByCustomerId,
   updateInterestOnlyLoanStatus,
   deleteInterestOnlyLoan,
+  regenerateInterestLoanSchedule,
+  updateInterestOnlyLoan,
 } from "./interestLoan.controller.js";
 import {
   validateLoanIdParam,
@@ -39,10 +41,26 @@ router.get(
 );
 
 /**
- * GET SINGLE LOAN (with schedules)
- * GET /api/interest-only-loans/:id
+ * REGENERATE LOAN SCHEDULE
+ * POST /api/interest-only-loans/:id/regenerate-schedule
  */
-router.get("/:id", verifyToken, validateLoanIdParam, getInterestOnlyLoanById);
+router.post(
+  "/:id/regenerate-schedule",
+  verifyToken,
+  validateLoanIdParam,
+  regenerateInterestLoanSchedule,
+);
+
+/**
+ * UPDATE LOAN (terms and schedule for unpaid loans)
+ * PUT /api/interest-only-loans/:id
+ */
+router.put(
+  "/:id",
+  verifyToken,
+  validateLoanIdParam,
+  updateInterestOnlyLoan,
+);
 
 /**
  * UPDATE LOAN STATUS
@@ -54,6 +72,12 @@ router.patch(
   validateLoanIdParam,
   updateInterestOnlyLoanStatus,
 );
+
+/**
+ * GET SINGLE LOAN (with schedules)
+ * GET /api/interest-only-loans/:id
+ */
+router.get("/:id", verifyToken, validateLoanIdParam, getInterestOnlyLoanById);
 
 /**
  * DELETE LOAN

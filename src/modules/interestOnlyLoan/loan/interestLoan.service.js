@@ -280,6 +280,165 @@ export const InterestOnlyLoanService = {
     }
   },
 
+  async update(loanId, data, user = null) {
+    const db = getDB();
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const loan = await InterestLoanModel.findById(loanId, conn);
+      if (!loan) {
+        throw { status: 404, message: "Interest-only loan not found" };
+      }
+
+      const totalPaid =
+        Number(loan.total_interest_paid || 0) +
+        Number(loan.total_principal_paid || 0);
+
+      // If payments exist, do not allow changing principal, tenure, frequency, rate, start date
+      if (totalPaid > 0) {
+        if (data.status && data.status !== loan.status) {
+          await InterestLoanModel.updateStatus(conn, loanId, data.status, user?.id);
+        }
+        await conn.commit();
+        const updated = await InterestLoanModel.findById(loanId);
+        return {
+          message: "Loan status updated (financial terms locked due to recorded payments)",
+          data: updated,
+        };
+      }
+
+      // If no payments have been made, allow full updates with recalculation & schedule regeneration
+      const customer_id = data.customer_id ? Number(data.customer_id) : loan.customer_id;
+      const interest_plan_id = data.interest_plan_id ? Number(data.interest_plan_id) : loan.interest_plan_id;
+      const principal = data.principal_amount !== undefined ? Number(data.principal_amount) : Number(loan.principal_amount);
+      const interest_rate = data.interest_rate !== undefined ? Number(data.interest_rate) : Number(loan.interest_rate);
+      const interest_type = data.interest_type || loan.interest_type || "percentage";
+      const frequency = data.interest_frequency || loan.interest_frequency || "monthly";
+      const tenure = data.tenure !== undefined ? Number(data.tenure) : Number(loan.tenure);
+      const tenure_type = data.tenure_type || loan.tenure_type || "months";
+      const startDate = data.start_date ? dayjs(data.start_date).format("YYYY-MM-DD") : dayjs(loan.start_date).format("YYYY-MM-DD");
+      const status = data.status || loan.status || "active";
+
+      // Commission
+      let commission_amount = Number(loan.commission_amount || 0);
+      if (data.commission_amount !== undefined) {
+        commission_amount = Number(data.commission_amount);
+      }
+      const net_disbursed_amount = Number((principal - commission_amount).toFixed(2));
+
+      // Cycles & dates
+      const totalMonths = tenure_type === "years" ? tenure * 12 : tenure;
+      const cycleMap = {
+        monthly: 1,
+        quarterly: 3,
+        half_yearly: 6,
+        yearly: 12,
+      };
+      const gap = cycleMap[frequency] || 1;
+      const totalCycles = Math.ceil(totalMonths / gap);
+
+      let interestPerCycle = 0;
+      if (interest_type === "percentage") {
+        interestPerCycle = Number(((principal * interest_rate) / 100).toFixed(2));
+      } else {
+        interestPerCycle = Number(interest_rate.toFixed(2));
+      }
+
+      const totalInterest = Number((interestPerCycle * totalCycles).toFixed(2));
+      const totalPayable = Number((principal + totalInterest).toFixed(2));
+      const endDate = dayjs(startDate).add(totalMonths, "month").format("YYYY-MM-DD");
+
+      // Update loan table
+      await conn.query(
+        `UPDATE interest_only_loans
+         SET customer_id = ?,
+             interest_plan_id = ?,
+             principal_amount = ?,
+             interest_rate = ?,
+             interest_type = ?,
+             interest_frequency = ?,
+             tenure = ?,
+             tenure_type = ?,
+             total_interest = ?,
+             total_payable = ?,
+             outstanding_interest = ?,
+             outstanding_principal = ?,
+             start_date = ?,
+             end_date = ?,
+             commission_amount = ?,
+             net_disbursed_amount = ?,
+             status = ?,
+             updated_by = ?
+         WHERE id = ?`,
+        [
+          customer_id,
+          interest_plan_id,
+          principal,
+          interest_rate,
+          interest_type,
+          frequency,
+          tenure,
+          tenure_type,
+          totalInterest,
+          totalPayable,
+          totalInterest,
+          principal,
+          startDate,
+          endDate,
+          commission_amount,
+          net_disbursed_amount,
+          status,
+          user?.id || null,
+          loanId,
+        ]
+      );
+
+      // Re-generate schedules cleanly
+      await ScheduleModel.deleteByLoanId(conn, loanId);
+
+      for (let i = 1; i <= totalCycles; i++) {
+        const dueDate = dayjs(startDate).add(i * gap, "month").format("YYYY-MM-DD");
+        const isLast = i === totalCycles;
+        const cyclePrincipal = isLast ? principal : 0;
+        const totalDue = Number((interestPerCycle + cyclePrincipal).toFixed(2));
+
+        await ScheduleModel.create(conn, {
+          loan_id: loanId,
+          schedule_no: i,
+          due_date: dueDate,
+          interest_amount: interestPerCycle,
+          principal_amount: cyclePrincipal,
+          total_due: totalDue,
+          paid_amount: 0,
+          interest_paid: 0,
+          principal_paid: 0,
+          balance_amount: totalDue,
+          payment_type: isLast ? "interest_and_principal" : "interest",
+          status: "pending",
+        });
+      }
+
+      await conn.commit();
+
+      const updatedLoan = await InterestLoanModel.findById(loanId);
+      const schedules = await ScheduleModel.getByLoanId(loanId);
+
+      return {
+        message: "Interest-only loan and schedule updated successfully",
+        data: {
+          ...updatedLoan,
+          schedules,
+        },
+      };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  },
+
   async getAll(filters = {}) {
     return await InterestLoanModel.getAll(filters);
   },

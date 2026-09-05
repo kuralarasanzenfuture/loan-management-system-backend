@@ -5,7 +5,7 @@ import {
 } from "./interestLoan.validation.js";
 
 /**
- * CREATE LOAN (🔥 generates schedule)
+ * CREATE LOAN (auto generates schedule)
  */
 export const createInterestOnlyLoan = async (req, res, next) => {
   try {
@@ -84,26 +84,46 @@ export const updateInterestOnlyLoanStatus = async (req, res, next) => {
 };
 
 /**
- * DELETE
+ * UPDATE LOAN (terms and schedule)
  */
-export const deleteInterestOnlyLoan = async (req, res, next) => {
+export const updateInterestOnlyLoan = async (req, res, next) => {
   try {
-    const result = await InterestOnlyLoanService.delete(req.params.id);
-
+    const { id } = req.params;
+    const result = await InterestOnlyLoanService.update(
+      Number(id),
+      req.body,
+      req.user,
+    );
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);
   }
 };
 
+/**
+ * REGENERATE REPAYMENT SCHEDULE
+ */
 export const regenerateInterestLoanSchedule = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await InterestLoanService.regenerateSchedule(
+    const result = await InterestOnlyLoanService.regenerateSchedule(
       Number(id),
       req.body,
       req.user,
     );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE
+ */
+export const deleteInterestOnlyLoan = async (req, res, next) => {
+  try {
+    const result = await InterestOnlyLoanService.delete(req.params.id);
+
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);

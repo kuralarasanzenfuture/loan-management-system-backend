@@ -57,6 +57,36 @@ export const PaymentService = {
         };
       }
 
+      if (data.schedule_id) {
+        const targetSch = schedules.find(
+          (s) => s.id === Number(data.schedule_id),
+        );
+        if (!targetSch) {
+          throw {
+            status: 400,
+            message: `Installment #${data.schedule_id} is already settled or not found`,
+          };
+        }
+        const targetDue = Number(
+          (
+            Number(targetSch.total_due) - Number(targetSch.paid_amount || 0)
+          ).toFixed(2),
+        );
+        if (paymentAmount > targetDue) {
+          throw {
+            status: 400,
+            message: `Payment amount (${paymentAmount}) cannot exceed installment #${targetSch.schedule_no} due (${targetDue})`,
+          };
+        }
+        const idx = schedules.findIndex(
+          (s) => s.id === Number(data.schedule_id),
+        );
+        if (idx > 0) {
+          const [targetItem] = schedules.splice(idx, 1);
+          schedules.unshift(targetItem);
+        }
+      }
+
       /** 4. GENERATE SEQUENTIAL PAYMENT NUMBER */
       const payment_no = await PaymentModel.getNextPaymentNo(
         conn,

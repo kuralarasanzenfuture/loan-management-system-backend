@@ -6,6 +6,8 @@ import Joi from "joi";
 export const createPaymentSchema = Joi.object({
   loan_id: Joi.number().integer().positive().required(),
 
+  schedule_id: Joi.number().integer().positive().allow(null),
+
   payment_date: Joi.date().iso().required(),
 
   payment_amount: Joi.number().positive().required(),
