@@ -369,10 +369,8 @@
 // };
 
 /*================================================= */
-
 import { getDB } from "../../../config/db.js";
 
-// Standard CRUD configuration reusable across modules
 const STANDARD_CRUD_ACTIONS = [
   {
     action_code: "VIEW",
@@ -404,7 +402,6 @@ const VIEW_ONLY_ACTION = [
   },
 ];
 
-// Mapping module codes to their specific granular permissions/actions
 const MODULE_ACTIONS_CONFIG = {
   // --- Dashboard & Analytics ---
   MOD_DASHBOARD: VIEW_ONLY_ACTION,
@@ -416,14 +413,29 @@ const MODULE_ACTIONS_CONFIG = {
   // --- Loan Management ---
   MOD_LOAN_APPS: STANDARD_CRUD_ACTIONS,
   MOD_LOAN_PLANS: STANDARD_CRUD_ACTIONS,
+  MOD_HAND_LOANS: STANDARD_CRUD_ACTIONS,
+  MOD_PERSONAL_CHITS: STANDARD_CRUD_ACTIONS,
+  MOD_INTEREST_LOAN_PLANS: STANDARD_CRUD_ACTIONS,
+  MOD_INTEREST_ONLY_LOANS: [
+    ...STANDARD_CRUD_ACTIONS,
+    {
+      action_code: "PAY",
+      action_name: "Pay Interest",
+      description: "Make interest payment for loan customer",
+    },
+  ],
 
   // --- Collections ---
   MOD_LOAN_COLLECTIONS: VIEW_ONLY_ACTION,
   MOD_DUE_COLLECTIONS: VIEW_ONLY_ACTION,
-
-  // --- Hand Loans & Personal Chits ---
-  MOD_HAND_LOANS: STANDARD_CRUD_ACTIONS,
-  MOD_PERSONAL_CHITS: STANDARD_CRUD_ACTIONS,
+  MOD_INTEREST_COLLECTIONS: [
+    ...VIEW_ONLY_ACTION,
+    {
+      action_code: "COLLECT",
+      action_name: "Collect Interest",
+      description: "Record interest payment collection",
+    },
+  ],
 
   // --- Organization ---
   MOD_COMPANIES: STANDARD_CRUD_ACTIONS,
@@ -448,12 +460,32 @@ const MODULE_ACTIONS_CONFIG = {
   MOD_ASSET_CATEGORIES: STANDARD_CRUD_ACTIONS,
   MOD_ASSETS: STANDARD_CRUD_ACTIONS,
 
+  // --- Administration ---
+  MOD_USERS: STANDARD_CRUD_ACTIONS,
+  MOD_ROLES: STANDARD_CRUD_ACTIONS,
+  MOD_ROLE_PERMISSIONS: STANDARD_CRUD_ACTIONS,
+  MOD_USER_PERMISSIONS: STANDARD_CRUD_ACTIONS,
+
   // --- Reports ---
   MOD_REP_LOANS: VIEW_ONLY_ACTION,
   MOD_REP_INSTALLMENTS: VIEW_ONLY_ACTION,
   MOD_REP_COLLECTIONS: VIEW_ONLY_ACTION,
   MOD_REP_CUSTOMERS: VIEW_ONLY_ACTION,
-  // MOD_REP_FINANCIAL: VIEW_ONLY_ACTION,
+  MOD_REP_INTEREST_COLLECTIONS: VIEW_ONLY_ACTION,
+
+  // --- System ---
+  MOD_SETTINGS: [
+    {
+      action_code: "VIEW",
+      action_name: "View Settings",
+      description: "View system configurations",
+    },
+    {
+      action_code: "EDIT",
+      action_name: "Update Settings",
+      description: "Modify system settings",
+    },
+  ],
 };
 
 export const SeedModuleActionsTable = async () => {
@@ -463,10 +495,7 @@ export const SeedModuleActionsTable = async () => {
   try {
     console.log(" ⏳ Seeding Module Actions into 'module_actions' table...");
 
-    // 1. Fetch existing modules map (code => id)
-    const [modules] = await connection.query(
-      "SELECT id, code, parent_id FROM modules",
-    );
+    const [modules] = await connection.query("SELECT id, code FROM modules");
     const moduleMap = new Map();
     modules.forEach((mod) => {
       moduleMap.set(mod.code, mod.id);

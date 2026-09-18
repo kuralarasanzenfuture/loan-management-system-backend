@@ -430,10 +430,9 @@
 // };
 
 /*======================================*/
-
 import { getDB } from "../../../config/db.js";
 
-// Professional configuration array mapping frontend NAV_SECTIONS to Database Modules
+// Unified, synchronized Navigation & Module Definition structure
 const NAV_SECTIONS = [
   {
     label: "Dashboard",
@@ -481,6 +480,30 @@ const NAV_SECTIONS = [
         path: "/loan-plans",
         description: "Loan tenure and repayment scheme definitions",
       },
+      {
+        label: "Hand Loans",
+        code: "MOD_HAND_LOANS",
+        path: "/hand-loans",
+        description: "Short-term non-collateral hand loan management",
+      },
+      {
+        label: "Personal Chits",
+        code: "MOD_PERSONAL_CHITS",
+        path: "/personal-chits",
+        description: "Internal chit fund and savings group records",
+      },
+      {
+        label: "Interest-Only Loan Plans",
+        code: "MOD_INTEREST_LOAN_PLANS",
+        path: "/interest-loan-plans",
+        description: "Configuration of interest-only loan schemes",
+      },
+      {
+        label: "Customer Interest Loans",
+        code: "MOD_INTEREST_ONLY_LOANS",
+        path: "/interest-only-loans",
+        description: "Active customer interest-only loan accounts",
+      },
     ],
   },
   {
@@ -498,6 +521,12 @@ const NAV_SECTIONS = [
         code: "MOD_DUE_COLLECTIONS",
         path: "/due-collections",
         description: "Upcoming and overdue EMI collection tracking",
+      },
+      {
+        label: "Interest Collections",
+        code: "MOD_INTEREST_COLLECTIONS",
+        path: "/interest-collections",
+        description: "Collections tracking for interest-only accounts",
       },
     ],
   },
@@ -537,36 +566,36 @@ const NAV_SECTIONS = [
       },
     ],
   },
-  // {
-  //   label: "Administration",
-  //   code: "SEC_ADMINISTRATION",
-  //   items: [
-  //     {
-  //       label: "Users",
-  //       code: "MOD_USERS",
-  //       path: "/users",
-  //       description: "System user accounts & access control",
-  //     },
-  //     {
-  //       label: "Roles",
-  //       code: "MOD_ROLES",
-  //       path: "/roles",
-  //       description: "Security role definitions",
-  //     },
-  //     {
-  //       label: "Role Permissions",
-  //       code: "MOD_ROLE_PERMISSIONS",
-  //       path: "/role-permissions",
-  //       description: "Granular permission assignment per role",
-  //     },
-  //     {
-  //       label: "User Permissions",
-  //       code: "MOD_USER_PERMISSIONS",
-  //       path: "/user-permissions",
-  //       description: "User-specific permission overrides",
-  //     },
-  //   ],
-  // },
+  {
+    label: "Administration",
+    code: "SEC_ADMINISTRATION",
+    items: [
+      {
+        label: "Users",
+        code: "MOD_USERS",
+        path: "/users",
+        description: "System user accounts & access control",
+      },
+      {
+        label: "Roles",
+        code: "MOD_ROLES",
+        path: "/roles",
+        description: "Security role definitions",
+      },
+      {
+        label: "Role Permissions",
+        code: "MOD_ROLE_PERMISSIONS",
+        path: "/role-permissions",
+        description: "Granular permission assignment per role",
+      },
+      {
+        label: "User Permissions",
+        code: "MOD_USER_PERMISSIONS",
+        path: "/user-permissions",
+        description: "User-specific permission overrides",
+      },
+    ],
+  },
   {
     label: "Reports",
     code: "SEC_REPORTS",
@@ -588,6 +617,12 @@ const NAV_SECTIONS = [
         code: "MOD_REP_COLLECTIONS",
         path: "/reports/loan-collections",
         description: "Collection efficiency analysis",
+      },
+      {
+        label: "Interest Collection Reports",
+        code: "MOD_REP_INTEREST_COLLECTIONS",
+        path: "/reports/interest-collections",
+        description: "Interest collection performance analysis",
       },
       {
         label: "Customer Reports",
@@ -643,7 +678,6 @@ export const SeedModulesTable = async () => {
         ],
       );
 
-      // Get Parent ID (If inserted new record or updated existing)
       let parentId;
       if (parentResult.insertId && parentResult.insertId > 0) {
         parentId = parentResult.insertId;
@@ -655,7 +689,7 @@ export const SeedModulesTable = async () => {
         parentId = rows[0].id;
       }
 
-      // 2. Upsert Child Items under the Parent Module
+      // 2. Upsert Child Items under Parent
       let childSortOrder = 1;
       for (const item of section.items) {
         await connection.query(

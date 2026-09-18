@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "node src/database/runSeeds.js",
+    "initial-seed": "node src/database/initialSeed.js",
     "migrate": "node src/database/runMigrations.js"
   },
   "keywords": [],
