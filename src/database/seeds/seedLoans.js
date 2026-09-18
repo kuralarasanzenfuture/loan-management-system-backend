@@ -1,4 +1,8 @@
 import { getDB } from "../../config/db.js";
+import {
+  calculateInstallmentDates,
+  calculateLoanEndDate,
+} from "../../modules/customersLoan-new/utils/installmentGenerator.js";
 
 // Helper to format Date object into YYYY-MM-DD
 const formatDate = (date) => date.toISOString().split("T")[0];
@@ -33,31 +37,24 @@ async function generateLoanNo(conn) {
   return `LN-${year}-${formatted}`;
 }
 
-// Generate installments based on your exact logic
+// Generate installments based on plan frequency and skip_sunday
 function generateInstallmentSchedules(loanId, totalRepayment, startDate, plan) {
   const tenure = Number(plan.tenure);
   const installmentCount = tenure;
   const normalAmount = Number((totalRepayment / installmentCount).toFixed(2));
 
+  const dates = calculateInstallmentDates({
+    startDate,
+    collectionFrequency: plan.collection_frequency,
+    tenure: plan.tenure,
+    skipSunday: Boolean(plan.skip_sunday),
+  });
+
   let remaining = totalRepayment;
   const installments = [];
 
   for (let i = 1; i <= installmentCount; i++) {
-    const dueDate = new Date(startDate);
-
-    switch (plan.collection_frequency) {
-      case "daily":
-        dueDate.setDate(dueDate.getDate() + (i - 1));
-        break;
-      case "weekly":
-        dueDate.setDate(dueDate.getDate() + (i - 1) * 7);
-        break;
-      case "monthly":
-        dueDate.setMonth(dueDate.getMonth() + (i - 1));
-        break;
-    }
-
-    const due_date = formatDate(dueDate);
+    const due_date = dates[i - 1];
     let principal_amount;
 
     if (i === installmentCount) {
@@ -141,21 +138,12 @@ export const SeedLoans = async () => {
         (totalRepayment / plan.tenure).toFixed(2),
       );
 
-      // 2. Set Start and End dates based on tenure and frequency
+      // 2. Set Start and End dates based on tenure, frequency, and skip_sunday
       const startDateObj = new Date();
       startDateObj.setDate(startDateObj.getDate() - i * 2); // Stagger start dates slightly
 
-      const endDateObj = new Date(startDateObj);
-      if (plan.collection_frequency === "daily") {
-        endDateObj.setDate(endDateObj.getDate() + plan.tenure);
-      } else if (plan.collection_frequency === "weekly") {
-        endDateObj.setDate(endDateObj.getDate() + plan.tenure * 7);
-      } else if (plan.collection_frequency === "monthly") {
-        endDateObj.setMonth(endDateObj.getMonth() + plan.tenure);
-      }
-
       const startDate = formatDate(startDateObj);
-      const endDate = formatDate(endDateObj);
+      const endDate = calculateLoanEndDate({ startDate, plan });
       const loanNo = await generateLoanNo(connection);
 
       // 3. Insert Loan

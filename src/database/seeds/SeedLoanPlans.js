@@ -5,6 +5,7 @@ const LOAN_PLANS_DATA = [
     plan_name: "Daily Micro Business Plan",
     plan_code: "LP-DAILY-100",
     collection_frequency: "daily",
+    skip_sunday: true,
     tenure: 100,
     tenure_type: "days",
     commission_type: "percentage",
@@ -23,6 +24,7 @@ const LOAN_PLANS_DATA = [
     plan_name: "Weekly Enterprise Flexi",
     plan_code: "LP-WEEKLY-12",
     collection_frequency: "weekly",
+    skip_sunday: false,
     tenure: 12,
     tenure_type: "weeks",
     commission_type: "fixed",
@@ -41,6 +43,7 @@ const LOAN_PLANS_DATA = [
     plan_name: "Monthly Salary Advance Plan",
     plan_code: "LP-MONTHLY-06",
     collection_frequency: "monthly",
+    skip_sunday: false,
     tenure: 6,
     tenure_type: "months",
     commission_type: "percentage",
@@ -59,6 +62,7 @@ const LOAN_PLANS_DATA = [
     plan_name: "Annual Business Growth Plan",
     plan_code: "LP-MONTHLY-12",
     collection_frequency: "monthly",
+    skip_sunday: false,
     tenure: 12,
     tenure_type: "months",
     commission_type: "percentage",
@@ -77,6 +81,7 @@ const LOAN_PLANS_DATA = [
     plan_name: "Express Emergency Daily",
     plan_code: "LP-EXPRESS-30",
     collection_frequency: "daily",
+    skip_sunday: false,
     tenure: 30,
     tenure_type: "days",
     commission_type: "fixed",
@@ -118,14 +123,15 @@ export const SeedLoanPlans = async () => {
         const [planResult] = await connection.query(
           `
           INSERT INTO loan_plans (
-            plan_name, plan_code, collection_frequency, tenure, tenure_type,
+            plan_name, plan_code, collection_frequency, skip_sunday, tenure, tenure_type,
             commission_type, commission_value, description, status, created_by
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             plan.plan_name,
             plan.plan_code,
             plan.collection_frequency,
+            plan.skip_sunday ? 1 : 0,
             plan.tenure,
             plan.tenure_type,
             plan.commission_type,
@@ -138,6 +144,27 @@ export const SeedLoanPlans = async () => {
         loanPlanId = planResult.insertId;
       } else {
         loanPlanId = existing[0].id;
+        await connection.query(
+          `
+          UPDATE loan_plans SET
+            plan_name = ?, collection_frequency = ?, skip_sunday = ?,
+            tenure = ?, tenure_type = ?, commission_type = ?, commission_value = ?,
+            description = ?, status = ?
+          WHERE id = ?
+          `,
+          [
+            plan.plan_name,
+            plan.collection_frequency,
+            plan.skip_sunday ? 1 : 0,
+            plan.tenure,
+            plan.tenure_type,
+            plan.commission_type,
+            plan.commission_value,
+            plan.description,
+            plan.status,
+            loanPlanId,
+          ],
+        );
       }
 
       // 2. Insert or update penalty rules

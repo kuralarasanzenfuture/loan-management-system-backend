@@ -6,8 +6,10 @@ import bankTransactionRoutes from "../modules/bankTransaction/bankTransaction.ro
 import roleRoutes from "../modules/roles/role.routes.js";
 import userRoutes from "../modules/users/user.routes.js";
 import customerRoutes from "../modules/customers/customer.routes.js";
-import loanPlanRoutes from "../modules/loanPlanAndPenalties/loanPlan.routes.js";
-import loanRoutes from "../modules/customersLoan/loan.routes.js";
+// import loanPlanRoutes from "../modules/loanPlanAndPenalties/loanPlan.routes.js";
+import loanPlanRoutes from "../modules/loanPlanAndPenalties-new/loanPlan.routes.js";
+// import loanRoutes from "../modules/customersLoan/loan.routes.js";
+import loanRoutes from "../modules/customersLoan-new/loan.routes.js";
 import loanInstallmentsRoutes from "../modules/loanInstallments/installment.routes.js";
 import assetCategoryRoutes from "../modules/assetCategory/assetCategory.routes.js";
 import assetRoutes from "../modules/businessAssert/businessAsset.routes.js";
