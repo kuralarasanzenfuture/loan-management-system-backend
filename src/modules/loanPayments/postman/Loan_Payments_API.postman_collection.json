@@ -1,0 +1,326 @@
+{
+  "info": {
+    "_postman_id": "b78b88d3-57a1-4fc3-a129-9e8c37d6a592",
+    "name": "Loan Payments API",
+    "description": "Comprehensive Postman collection for managing loan installment payments, auto-allocated loan payments, batch bulk payments, receipts, summary analytics, and payment reversals.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_JWT_ACCESS_TOKEN",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Record Payments",
+      "item": [
+        {
+          "name": "Pay Single Installment (Auto-infers loan_id)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"installment_id\": 1,\n  \"payment_amount\": 100.00,\n  \"payment_mode\": \"cash\",\n  \"payment_date\": \"2026-09-18T10:30:00.000Z\",\n  \"transaction_reference\": \"TXN-CASH-001\",\n  \"remarks\": \"Installment payment received in cash\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments"]
+            },
+            "description": "Records payment for a single installment. The backend automatically looks up the installment, validates that the payment amount does not exceed the remaining balance, retrieves the loan_id, generates the sequential payment_no for that loan, updates the installment's paid_amount, balance_amount, paid_date, and status, and marks the loan completed if all installments are settled."
+          },
+          "response": []
+        },
+        {
+          "name": "Pay Single Installment (Explicit loan_id)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": 1,\n  \"installment_id\": 2,\n  \"payment_amount\": 500.00,\n  \"payment_mode\": \"upi\",\n  \"payment_date\": \"2026-09-18T11:00:00.000Z\",\n  \"transaction_reference\": \"UPI/625341278912/PayTM\",\n  \"remarks\": \"UPI transfer from customer mobile app\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments"]
+            },
+            "description": "Records payment providing both loan_id and installment_id. The backend verifies that the installment strictly belongs to the specified loan before processing."
+          },
+          "response": []
+        },
+        {
+          "name": "Pay Loan (Auto-allocated Lump Sum)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": 1,\n  \"payment_amount\": 2500.00,\n  \"payment_mode\": \"bank\",\n  \"payment_date\": \"2026-09-18T14:15:00.000Z\",\n  \"transaction_reference\": \"NEFT/HDFC000123/20260918\",\n  \"remarks\": \"Customer lump sum advance deposit\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/pay-loan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "pay-loan"]
+            },
+            "description": "Lump-sum payment for a loan. The backend fetches all pending or partial installments for the loan in order of installment_no, and allocates the payment amount sequentially until the amount is exhausted. Generates a distinct loan_payments record with its own payment_no for each affected installment."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Pay Installments (Batch Processing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payments\": [\n    {\n      \"installment_id\": 3,\n      \"payment_amount\": 333.33,\n      \"payment_mode\": \"cash\",\n      \"remarks\": \"Batch collection counter 1\"\n    },\n    {\n      \"installment_id\": 4,\n      \"payment_amount\": 333.33,\n      \"payment_mode\": \"upi\",\n      \"transaction_reference\": \"GPay/Ref89211\",\n      \"remarks\": \"Batch collection counter 2\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/bulk",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "bulk"]
+            },
+            "description": "Executes batch payments across multiple installments inside a single database transaction. If any installment fails validation or exceeds balance, the entire batch rolls back safely."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Query & Retrieval",
+      "item": [
+        {
+          "name": "Get All Payments (Paginated & Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments?page=1&limit=10&search=&payment_mode=cash",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (defaults to 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of records per page (defaults to 10)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Searches loan_no, customer_no, customer name, mobile, transaction_reference, cheque_number"
+                },
+                {
+                  "key": "payment_mode",
+                  "value": "cash",
+                  "description": "Optional: cash, bank, upi, cheque, other"
+                }
+              ]
+            },
+            "description": "Returns a paginated list of all payments with total counts, total pages, customer details, installment info, and received_by user."
+          },
+          "response": []
+        },
+        {
+          "name": "Filter Payments by Loan ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments?loan_id=1&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments"],
+              "query": [
+                {
+                  "key": "loan_id",
+                  "value": "1"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Filter payments specifically for a given loan ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Filter Payments by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments?from_date=2026-09-01&to_date=2026-09-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments"],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "2026-09-01"
+                },
+                {
+                  "key": "to_date",
+                  "value": "2026-09-30"
+                }
+              ]
+            },
+            "description": "Filter payments within a specified start and end date (inclusive)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Payment by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "1"]
+            },
+            "description": "Retrieves comprehensive details of a single payment record by its primary ID, including complete loan, customer, installment, and receiver user context."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payments for a Loan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/loan/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "loan", "1"]
+            },
+            "description": "Retrieves the full sequential payment history for a specific loan ordered by payment_no ASC."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payments for an Installment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/installment/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "installment", "1"]
+            },
+            "description": "Retrieves all partial payments contributed towards a specific installment."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Receipts & Analytics",
+      "item": [
+        {
+          "name": "Get Payment Receipt Voucher",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/receipt/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "receipt", "1"]
+            },
+            "description": "Generates complete receipt voucher data including receipt_no (e.g. RCP-0001-0001), company details (name, GST, phone, address), customer info, loan plan details, and installment breakdown suitable for generating print/PDF receipts."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Collections & Mode Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/summary?from_date=2026-09-01&to_date=2026-09-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "summary"],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "2026-09-01"
+                },
+                {
+                  "key": "to_date",
+                  "value": "2026-09-30"
+                }
+              ]
+            },
+            "description": "Returns financial summary metrics including total payments count, total collected amount, today's collection count and amount, and mode-wise payment breakdown (cash, upi, bank, cheque, etc.)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Reversal / Cancellation",
+      "item": [
+        {
+          "name": "Revert / Delete Payment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/loan-payments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loan-payments", "1"]
+            },
+            "description": "Atomically reverts a payment. Subtracts the payment amount from installment paid_amount, recalculates balance_amount and status, restores loan status back to 'active' if it was completed, and deletes the payment record."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

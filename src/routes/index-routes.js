@@ -11,6 +11,7 @@ import loanPlanRoutes from "../modules/loanPlanAndPenalties-new/loanPlan.routes.
 // import loanRoutes from "../modules/customersLoan/loan.routes.js";
 import loanRoutes from "../modules/customersLoan-new/loan.routes.js";
 import loanInstallmentsRoutes from "../modules/loanInstallments/installment.routes.js";
+import loanPaymentsRoutes from "../modules/loanPayments/loanPayment.routes.js";
 import assetCategoryRoutes from "../modules/assetCategory/assetCategory.routes.js";
 import assetRoutes from "../modules/businessAssert/businessAsset.routes.js";
 import handLoanRoutes from "../modules/handLoan/handLoan.routes.js";
@@ -34,6 +35,7 @@ router.use("/customers", customerRoutes);
 router.use("/loan-plans", loanPlanRoutes);
 router.use("/customer-loans", loanRoutes);
 router.use("/loan-installments", loanInstallmentsRoutes);
+router.use("/loan-payments", loanPaymentsRoutes);
 router.use("/company-details", companyDetailsRoutes);
 router.use("/company-banks", companyBankRoutes);
 router.use("/bank-transactions", bankTransactionRoutes);

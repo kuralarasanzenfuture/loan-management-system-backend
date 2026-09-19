@@ -17,4 +17,4 @@ CREATE TABLE
         INDEX idx_installment_loan (loan_id),
         INDEX idx_installment_due_date (due_date),
         INDEX idx_installment_status (status)
-    );
+    );

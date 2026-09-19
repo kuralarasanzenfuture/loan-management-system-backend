@@ -1,0 +1,83 @@
+import express from "express";
+import { verifyToken } from "../../middlewares/auth.middleware.js";
+
+import {
+  getInstallmentsByLoan,
+  getInstallmentById,
+  updateInstallment,
+  getCurrentDue,
+  getNextDue,
+  getLoanSummary,
+  calculatePenalty,
+  payInstallment,
+  applyPenalty,
+  regenerateInstallments,
+  getOverdueInstallments,
+  getTodayCollections,
+  getOverdueInstallmentsGlobal,
+} from "./installment.controller.js";
+import { getLoanCollections } from "./reports/report.controller.js";
+
+const router = express.Router();
+
+/* =========================================================
+   BASIC INSTALLMENTS
+========================================================= */
+
+// Get all installments of a loan
+router.get("/loan/:loanId", verifyToken, getInstallmentsByLoan);
+
+/* ===============================
+   TODAY COLLECTIONS
+   GET /api/installments/today
+   ?date=YYYY-MM-DD (optional)
+=============================== */
+router.get("/today-collections", verifyToken, getTodayCollections);
+
+router.get("/reports/loan-collections", verifyToken, getLoanCollections);
+
+/* ===============================
+   GLOBAL OVERDUE
+   GET /api/installments/overdue
+=============================== */
+router.get("/overdue", verifyToken, getOverdueInstallmentsGlobal);
+
+// Get single installment
+router.get("/:id", verifyToken, getInstallmentById);
+
+// Update installment manually
+router.put("/:id", verifyToken, updateInstallment);
+
+/* =========================================================
+   PAYMENT ACTION
+========================================================= */
+
+// 🔥 Pay installment (important API)
+router.post("/:id/pay", verifyToken, payInstallment);
+
+router.post("/:id/apply-penalty", verifyToken, applyPenalty);
+
+router.post("/loan/:loanId/regenerate", verifyToken, regenerateInstallments);
+
+/* =========================================================
+   CURRENT DUE & SUMMARY
+========================================================= */
+
+// 🔥 Get current due (next unpaid + penalty)
+router.get("/loan/:loanId/current-due", verifyToken, getCurrentDue);
+
+router.get("/loan/:loanId/overdue", verifyToken, getOverdueInstallments);
+
+router.get("/loan/:loanId/next-due", verifyToken, getNextDue);
+
+// 🔥 Loan summary (total paid, balance, overdue)
+router.get("/loan/:loanId/summary", verifyToken, getLoanSummary);
+
+/* =========================================================
+   PENALTY
+========================================================= */
+
+// 🔥 Calculate penalty for installment
+router.get("/:id/penalty", verifyToken, calculatePenalty);
+
+export default router;

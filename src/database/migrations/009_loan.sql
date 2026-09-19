@@ -1,7 +1,7 @@
 CREATE TABLE
     IF NOT EXISTS loans (
         id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        loan_no VARCHAR(50),
+        loan_no VARCHAR(50) NOT NULL,
         customer_id BIGINT NOT NULL,
         loan_plan_id BIGINT NOT NULL,
         loan_amount DECIMAL(12, 2) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE
         start_date DATE,
         end_date DATE,
         created_by BIGINT NOT NULL,
-        updated_by BIGINT NOT NULL,
+        updated_by BIGINT NULL,
         status ENUM ('active', 'completed', 'closed', 'default') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
