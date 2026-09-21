@@ -41,6 +41,19 @@ const INTEREST_LOAN_PLANS = [
       "Short-term 1% weekly interest plan on outstanding balance with flexible anytime payments",
   },
   {
+    plan_name: "Daily 1% Simple",
+    plan_code: "INT-DAILY-1",
+    interest_type: "percentage",
+    interest_value: 1.0000,
+    interest_frequency: "daily",
+    calculation_method: "simple",
+    principal_basis: "outstanding_principal",
+    payment_type: "anytime",
+    status: "active",
+    description:
+      "Daily rate of 1% on outstanding balance for daily collection credit",
+  },
+  {
     plan_name: "Daily 0.1% Simple",
     plan_code: "INT-DAILY-0.1",
     interest_type: "percentage",

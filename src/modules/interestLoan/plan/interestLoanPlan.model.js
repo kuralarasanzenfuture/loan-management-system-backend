@@ -45,6 +45,7 @@ export const InterestLoanPlanModel = {
     const [rows] = await client.query(
       `SELECT 
         p.*,
+        (SELECT COUNT(*) FROM interest_loans WHERE interest_plan_id = p.id) AS loans_count,
         u1.username AS created_by_name,
         u2.username AS updated_by_name
        FROM interest_loan_plans p
@@ -53,7 +54,14 @@ export const InterestLoanPlanModel = {
        WHERE p.id = ?`,
       [id],
     );
-    return rows[0] || null;
+    if (!rows[0]) return null;
+    const count = parseInt(rows[0].loans_count || 0, 10);
+    return {
+      ...rows[0],
+      interest_value: parseFloat(rows[0].interest_value),
+      loans_count: count,
+      is_in_use: count > 0,
+    };
   },
 
   /**
@@ -99,6 +107,7 @@ export const InterestLoanPlanModel = {
     let query = `
       SELECT 
         p.*,
+        (SELECT COUNT(*) FROM interest_loans WHERE interest_plan_id = p.id) AS loans_count,
         u1.username AS created_by_name,
         u2.username AS updated_by_name
       FROM interest_loan_plans p
@@ -144,7 +153,15 @@ export const InterestLoanPlanModel = {
     }
 
     const [rows] = await db.query(query, params);
-    return rows;
+    return rows.map((r) => {
+      const count = parseInt(r.loans_count || 0, 10);
+      return {
+        ...r,
+        interest_value: parseFloat(r.interest_value),
+        loans_count: count,
+        is_in_use: count > 0,
+      };
+    });
   },
 
   /**

@@ -1,0 +1,265 @@
+{
+  "info": {
+    "_postman_id": "c71a39d8-9df2-41eb-ba7b-2a21087d159a",
+    "name": "Interest Loans API",
+    "description": "Comprehensive Postman collection for managing Customer Interest Loans (Migration 027 & 028) in the Loan Management System. Features automated sequential loan numbering (INTL-000001), automated period 1 schedule generation, automatic calendar-based due date synchronization, guarded updates/deletions with payment integrity checks, and portfolio summary analytics.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_JWT_ACCESS_TOKEN",
+      "type": "string"
+    },
+    {
+      "key": "loanId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "customerId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "planId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Loan",
+      "item": [
+        {
+          "name": "Create Interest Loan (Automated INTL & Period 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.id) {",
+                  "        pm.collectionVariables.set('loanId', json.data.id);",
+                  "        console.log('Saved loanId:', json.data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": 1,\n  \"interest_plan_id\": 1,\n  \"principal_amount\": 100000.00,\n  \"start_date\": \"2026-09-12\",\n  \"remarks\": \"Standard anytime interest loan on outstanding balance.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans"]
+            },
+            "description": "Creates a new customer interest loan. Automatically: 1. Generates sequential loan_no (INTL-000001). 2. Snapshots plan rate, frequency, basis into the loan. 3. Automatically sets status to 'active'. 4. Automatically computes next_interest_date and generates Period 1 in interest_loan_periods."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Get Loans & Summary",
+      "item": [
+        {
+          "name": "Get Portfolio Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "summary"]
+            },
+            "description": "Retrieves portfolio summary metrics including total principal disbursed, outstanding principal, collected principal & interest."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Interest Loans (Paginated & Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans?status=active&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "active | completed | closed | cancelled"
+                },
+                {
+                  "key": "customer_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "interest_plan_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "interest_frequency",
+                  "value": "monthly",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Retrieves paginated list of interest loans with customer details."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Loans by Keyword",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans?search=INTL",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "INTL",
+                  "description": "Matches loan_no, customer_no, first_name, last_name, mobile, plan_name"
+                }
+              ]
+            },
+            "description": "Searches loans by loan number, customer name, mobile, or plan."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Loan By ID (With Period Schedule)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "{{loanId}}"]
+            },
+            "description": "Retrieves comprehensive loan details including customer info, current outstanding balances, and complete periods schedule."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Loans By Customer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/customer/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "customer", "{{customerId}}"]
+            },
+            "description": "Retrieves all interest loans associated with a specific customer ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Update & Delete",
+      "item": [
+        {
+          "name": "Update Loan (Guarded if payments exist)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"principal_amount\": 120000.00,\n  \"remarks\": \"Revised loan principal before payments started.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "{{loanId}}"]
+            },
+            "description": "Updates loan parameters. If payments have already been made, modifying financial terms (principal, start date, plan) is strictly rejected, and only remarks can be updated. If no payments have been made, Period 1 is automatically recalculated."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Loan (Rejected if payments exist)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "{{loanId}}"]
+            },
+            "description": "Deletes an uncollected interest loan. If any payments have been recorded, deletion is strictly rejected to preserve accounting records."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Periods Schedule",
+      "item": [
+        {
+          "name": "Get Periods by Loan ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/periods/loan/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "periods", "loan", "{{loanId}}"]
+            },
+            "description": "Retrieves all interest collection periods for a specific loan."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "info": {
+    "_postman_id": "a93f1823-1d42-4f32-8df7-628d0b284920",
+    "name": "Interest Loan Periods API",
+    "description": "Postman collection for inspecting and managing periodic collection schedules for customer interest loans (Migration 028). Provides endpoints to fetch chronological period lists, inspection of opening principal and interest balances, and single period snapshots.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_JWT_ACCESS_TOKEN",
+      "type": "string"
+    },
+    {
+      "key": "loanId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "periodId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Query Periods",
+      "item": [
+        {
+          "name": "Get Periods by Loan ID (via /interest-loans/periods)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/periods/loan/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "periods", "loan", "{{loanId}}"]
+            },
+            "description": "Retrieves the complete schedule of interest periods for a specific loan."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Periods by Loan ID (Direct /interest-loan-periods)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loan-periods/loan/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loan-periods", "loan", "{{loanId}}"]
+            },
+            "description": "Direct alias endpoint to retrieve all collection periods for a loan."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Period By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/periods/{{periodId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "periods", "{{periodId}}"]
+            },
+            "description": "Retrieves details of an individual period record including opening principal and outstanding balance."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

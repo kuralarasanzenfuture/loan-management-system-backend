@@ -28,6 +28,7 @@ import interestOnlyLoanRoutes from "../modules/interestOnlyLoan/loan/interestLoa
 import interestOnlyScheduleRoutes from "../modules/interestOnlyLoan/schedule/schedule.routes.js";
 import interestOnlyPaymentRoutes from "../modules/interestOnlyLoan/payment/payment.routes.js";
 import interestLoanPlanRoutes from "../modules/interestLoan/plan/interestLoanPlan.routes.js";
+import interestLoanPeriodRoutes from "../modules/interestLoan/period/interestLoanPeriod.routes.js";
 import interestLoanRouter from "../modules/interestLoan/index.js";
 
 const router = express.Router();
@@ -57,6 +58,7 @@ router.use("/interest-only-loans", interestOnlyLoanRoutes);
 router.use("/interest-only-schedules", interestOnlyScheduleRoutes);
 router.use("/interest-only-payments", interestOnlyPaymentRoutes);
 router.use("/interest-loan-plans", interestLoanPlanRoutes);
+router.use("/interest-loan-periods", interestLoanPeriodRoutes);
 router.use("/interest-loans", interestLoanRouter);
 
 

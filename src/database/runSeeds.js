@@ -13,6 +13,7 @@ import { SeedModuleActionsTable } from "./seeds/permissions/seedModuleActions.js
 import { SeedRolePermissionsTable } from "./seeds/permissions/seedRolePermissions.js";
 import { SeedInterestOnlyLoanPlansTable } from "./seeds/seedInterestOnlyLoanPlans.js";
 import { SeedInterestLoanPlansTable } from "./seeds/seedInterestLoanPlans.js";
+import { SeedInterestLoansTable } from "./seeds/seedInterestLoans.js";
 
 const runSeeds = async () => {
   try {
@@ -48,6 +49,8 @@ const runSeeds = async () => {
     await SeedInterestOnlyLoanPlansTable();
 
     await SeedInterestLoanPlansTable();
+
+    await SeedInterestLoansTable();
 
     console.log("✅ Seeding completed");
   } catch (err) {
