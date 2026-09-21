@@ -1,0 +1,26 @@
+CREATE TABLE
+    IF NOT EXISTS interest_loan_payments (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        loan_id BIGINT NOT NULL,
+        payment_no INT NOT NULL,
+        payment_date DATETIME NOT NULL,
+        payment_amount DECIMAL(15, 2) NOT NULL,
+        interest_amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+        principal_amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+        outstanding_interest_before DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+        outstanding_principal_before DECIMAL(15, 2) NOT NULL,
+        outstanding_interest_after DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+        outstanding_principal_after DECIMAL(15, 2) NOT NULL,
+        payment_mode ENUM ('cash', 'bank', 'upi', 'cheque', 'other') NOT NULL,
+        transaction_reference VARCHAR(150) NULL,
+        cheque_number VARCHAR(50) NULL,
+        remarks TEXT,
+        received_by BIGINT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_interest_payment_no (loan_id, payment_no),
+        KEY idx_interest_payment_loan (loan_id),
+        KEY idx_interest_payment_date (payment_date),
+        KEY idx_interest_payment_mode (payment_mode),
+        CONSTRAINT fk_interest_payment_loan FOREIGN KEY (loan_id) REFERENCES interest_loans (id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        CONSTRAINT fk_interest_payment_received_by FOREIGN KEY (received_by) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+    );

@@ -98,3 +98,5 @@ export const verifyToken = async (req, res, next) => {
     });
   }
 };
+
+export { checkPermission } from "./permission.middleware.js";

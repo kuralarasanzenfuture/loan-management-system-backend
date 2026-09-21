@@ -27,6 +27,8 @@ import interestOnlyLoanPlanRoutes from "../modules/interestLoanPlan/interestLoan
 import interestOnlyLoanRoutes from "../modules/interestOnlyLoan/loan/interestLoan.routes.js";
 import interestOnlyScheduleRoutes from "../modules/interestOnlyLoan/schedule/schedule.routes.js";
 import interestOnlyPaymentRoutes from "../modules/interestOnlyLoan/payment/payment.routes.js";
+import interestLoanPlanRoutes from "../modules/interestLoan/plan/interestLoanPlan.routes.js";
+import interestLoanRouter from "../modules/interestLoan/index.js";
 
 const router = express.Router();
 router.use("/roles", roleRoutes);
@@ -54,14 +56,16 @@ router.use("/interest-only-loan-plans", interestOnlyLoanPlanRoutes);
 router.use("/interest-only-loans", interestOnlyLoanRoutes);
 router.use("/interest-only-schedules", interestOnlyScheduleRoutes);
 router.use("/interest-only-payments", interestOnlyPaymentRoutes);
+router.use("/interest-loan-plans", interestLoanPlanRoutes);
+router.use("/interest-loans", interestLoanRouter);
 
-
-router.use((req, res, next) => {
-  res.status(404).send("Route not found");
-});
 
 router.get("/", (req, res) => {
   res.send("API Server Running");
+});
+
+router.use((req, res, next) => {
+  res.status(404).send("Route not found");
 });
 
 export default router;
