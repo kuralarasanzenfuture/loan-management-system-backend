@@ -434,7 +434,7 @@ const MODULE_ACTIONS_CONFIG = {
     },
   ],
   MOD_ANYTIME_INTEREST_LOAN_PAYMENTS: [
-    VIEW_ONLY_ACTION,
+    ...VIEW_ONLY_ACTION,
     {
       action_code: "PAY",
       action_name: "Pay Interest",

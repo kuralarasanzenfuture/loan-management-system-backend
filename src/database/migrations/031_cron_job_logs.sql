@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS cron_job_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    job_name VARCHAR(100) NOT NULL,
+    execution_date DATE NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NULL,
+    duration_ms INT NULL,
+    status ENUM('running', 'success', 'failed', 'partial') NOT NULL DEFAULT 'running',
+    total_eligible INT NOT NULL DEFAULT 0,
+    processed_count INT NOT NULL DEFAULT 0,
+    periods_generated INT NOT NULL DEFAULT 0,
+    failed_count INT NOT NULL DEFAULT 0,
+    error_details JSON NULL,
+    summary JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_cron_logs_job_name (job_name),
+    KEY idx_cron_logs_date (execution_date),
+    KEY idx_cron_logs_status (status)
+);
