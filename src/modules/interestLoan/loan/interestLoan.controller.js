@@ -1,4 +1,5 @@
 import { InterestLoanService } from "./interestLoan.service.js";
+import { InterestLoanPeriodCronService } from "../period/interestLoanPeriodCron.service.js";
 import {
   createInterestLoanSchema,
   updateInterestLoanSchema,
@@ -134,3 +135,35 @@ export const deleteInterestLoan = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * MANUALLY GENERATE NEXT PERIOD FOR LOAN (Internal / Admin API)
+ * POST /api/interest-loans/:id/generate-period
+ */
+export const generateLoanPeriod = async (req, res, next) => {
+  try {
+    const loanId = req.params.loanId || req.params.id;
+    const result = await InterestLoanPeriodCronService.generateNextPeriodForLoan(
+      loanId,
+      req.body || {}
+    );
+
+    if (result.already_exists) {
+      return res.status(200).json({
+        success: true,
+        already_exists: true,
+        message: result.message,
+        data: result,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

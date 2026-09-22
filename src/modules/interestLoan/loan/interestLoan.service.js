@@ -123,21 +123,32 @@ export const InterestLoanService = {
         created_by: user?.id || 1,
       });
 
-      // 6. Automatically generate Period 1
+      // 6. Open-ended loans generate periods only when due.
+      // If the loan is backdated and the first cycle due date has already arrived, generate Period 1 immediately.
       const isDue = dayjs().isSameOrAfter(dayjs(nextInterestDate), "day");
-      await InterestLoanPeriodModel.create(conn, {
-        loan_id: loanId,
-        period_no: 1,
-        period_start_date: startDate,
-        period_end_date: nextInterestDate,
-        scheduled_date: nextInterestDate,
-        opening_principal: principal,
-        interest_rate: plan.interest_value,
-        interest_amount: interestAmount,
-        paid_interest_amount: 0.0,
-        outstanding_interest_amount: interestAmount,
-        status: isDue ? "due" : "pending",
-      });
+      if (isDue) {
+        await InterestLoanPeriodModel.create(conn, {
+          loan_id: loanId,
+          period_no: 1,
+          period_start_date: startDate,
+          period_end_date: nextInterestDate,
+          scheduled_date: nextInterestDate,
+          opening_principal: principal,
+          interest_rate: plan.interest_value,
+          interest_amount: interestAmount,
+          paid_interest_amount: 0.0,
+          outstanding_interest_amount: interestAmount,
+          status: "due",
+        });
+
+        // Update loan total accrued & outstanding interest for backdated due period
+        await conn.query(
+          `UPDATE interest_loans 
+           SET total_interest_accrued = ?, outstanding_interest = ?, last_interest_date = ? 
+           WHERE id = ?`,
+          [interestAmount, interestAmount, nextInterestDate, loanId]
+        );
+      }
 
       await conn.commit();
 

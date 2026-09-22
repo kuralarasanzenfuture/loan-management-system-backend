@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a93f1823-1d42-4f32-8df7-628d0b284920",
     "name": "Interest Loan Periods API",
-    "description": "Postman collection for inspecting and managing periodic collection schedules for customer interest loans (Migration 028). Provides endpoints to fetch chronological period lists, inspection of opening principal and interest balances, and single period snapshots.",
+    "description": "Postman collection for inspecting and managing periodic collection schedules, today's collections, overdue tracking, and background interest accrual for customer interest loans (Migration 028).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -39,7 +39,99 @@
   ],
   "item": [
     {
-      "name": "1. Query Periods",
+      "name": "1. Collections & Recovery",
+      "item": [
+        {
+          "name": "Today's Collections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/periods/collections/today?status=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "periods", "collections", "today"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by status: due, partial, paid, or all"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-09-21",
+                  "disabled": true,
+                  "description": "Optional target collection date (defaults to today)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search by loan no, customer name, or phone"
+                }
+              ]
+            },
+            "description": "Retrieves all interest periods scheduled for today with operational summary metrics (total due, collected, outstanding)."
+          },
+          "response": []
+        },
+        {
+          "name": "Overdue Collections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/periods/collections/overdue?min_days_overdue=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "periods", "collections", "overdue"],
+              "query": [
+                {
+                  "key": "min_days_overdue",
+                  "value": "1",
+                  "description": "Filter overdue threshold in days (e.g. 1, 7, 30)"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-09-21",
+                  "disabled": true,
+                  "description": "Reference date (defaults to today)"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search by loan no, customer name, or phone"
+                }
+              ]
+            },
+            "description": "Retrieves delinquent interest periods whose scheduled date has passed with unpaid balances, sorted by aging days overdue."
+          },
+          "response": []
+        },
+        {
+          "name": "Collections Overview (Dashboard)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/periods/collections?type=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "periods", "collections"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "all",
+                  "description": "today | overdue | all"
+                }
+              ]
+            },
+            "description": "Unified dashboard endpoint returning executive KPI counters for Today, Overdue, and Upcoming 7 Days alongside records."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Query Periods",
       "item": [
         {
           "name": "Get Periods by Loan ID (via /interest-loans/periods)",
@@ -80,6 +172,34 @@
               "path": ["api", "interest-loans", "periods", "{{periodId}}"]
             },
             "description": "Retrieves details of an individual period record including opening principal and outstanding balance."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Cron Accrual Trigger",
+      "item": [
+        {
+          "name": "Run Daily Accrual Cron (On-Demand)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-09-21\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/periods/cron/run",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "periods", "cron", "run"]
+            },
+            "description": "Triggers the daily interest accrual cycle immediately on demand for testing or operator runs."
           },
           "response": []
         }

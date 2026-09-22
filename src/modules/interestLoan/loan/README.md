@@ -15,14 +15,16 @@ Core customer anytime interest-based lending engine with automated lifecycle man
 - Generates sequential identifiers: `INTL-000001`, `INTL-000002`, `INTL-000003`, etc.
 - Implemented using database row-level locking (`SELECT loan_no FROM interest_loans ORDER BY id DESC LIMIT 1 FOR UPDATE`) inside an isolated transaction.
 
-### 3. Automatic Snapshotting & Schedule Generation
-- Plan parameters (`interest_type`, `interest_rate`, `interest_frequency`, `calculation_method`, `principal_basis`) are snapshotted directly onto the loan to preserve terms even if the parent plan changes later.
-- Computes `next_interest_date` based on the frequency (`daily`: +1 day, `weekly`: +1 week, `monthly`: +1 month, `yearly`: +1 year).
-- In the same atomic database transaction, creates **Period 1** in `interest_loan_periods` with:
-  - `opening_principal = principal_amount`
-  - `interest_amount = (principal * rate) / 100` (or fixed value)
-  - `scheduled_date = next_interest_date`
-  - `status = 'pending'` (or `'due'` if today >= scheduled_date)
+### 3. Open-Ended Lifecycle & Just-In-Time Period Generation
+- **Zero Initial Periods**: When an open-ended loan is created, future periods are not created upfront. Instead, billing periods are generated **only as they become due**:
+  - `Loan created (12-Sep)`: `start_date = 2026-09-12`, `next_interest_date = 2026-10-12`. 0 periods in database.
+  - `12-Oct (12:05 AM Cron)`: Generates Period 1 (`due`), advances `next_interest_date` to `2026-11-12`.
+  - `12-Nov (12:05 AM Cron)`: Generates Period 2 (`due`), advances `next_interest_date` to `2026-12-12`.
+  - `12-Dec (12:05 AM Cron)`: Generates Period 3 (`due`), advances `next_interest_date` to `2027-01-12`.
+- **Secondary Manual API**:
+  - `POST /api/interest-loans/:loanId/generate-period` allows an administrator to trigger the next period immediately on demand without waiting for midnight.
+- **100% Idempotency**:
+  - Guarded by database unique constraint `UNIQUE KEY uq_interest_period_date (loan_id, scheduled_date)` and code-level verification. Running the cron or manual API multiple times on the same date will never create duplicate periods.
 
 ---
 
@@ -82,6 +84,7 @@ Protected with `verifyToken` and `checkPermission("MOD_INTEREST_ONLY_LOANS", act
 | `/api/interest-loans/:id` | `GET` | `VIEW` | View loan details + linked period schedule |
 | `/api/interest-loans/customer/:customer_id` | `GET` | `VIEW` | View all loans opened by a customer |
 | `/api/interest-loans/:id` | `PUT` | `EDIT` | Update loan (guarded if payments recorded) |
+| `/api/interest-loans/:id/generate-period` | `POST` | `EDIT` | Manually generate next period immediately (Secondary API) |
 | `/api/interest-loans/:id` | `DELETE` | `DELETE` | Delete loan (blocked if payments recorded) |
 
 ---

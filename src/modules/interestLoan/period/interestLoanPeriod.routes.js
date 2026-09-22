@@ -5,6 +5,11 @@ import {
   getPeriodsByLoanId,
   getPeriodById,
   syncDuePeriods,
+  triggerAccrualCron,
+  generateLoanPeriodManual,
+  getTodayCollections,
+  getOverdueCollections,
+  getCollectionsOverview,
 } from "./interestLoanPeriod.controller.js";
 import {
   validateLoanIdParam,
@@ -19,6 +24,59 @@ const MODULE_CODE = "MOD_INTEREST_ONLY_LOANS";
  * INTEREST LOAN PERIOD ROUTES (028)
  * ==========================================
  */
+
+// Dedicated Today's Collections (must be before /:id)
+router.get(
+  "/collections/today",
+  verifyToken,
+  checkPermission(MODULE_CODE, "VIEW"),
+  getTodayCollections,
+);
+router.get(
+  "/today",
+  verifyToken,
+  checkPermission(MODULE_CODE, "VIEW"),
+  getTodayCollections,
+);
+
+// Dedicated Overdue Collections (must be before /:id)
+router.get(
+  "/collections/overdue",
+  verifyToken,
+  checkPermission(MODULE_CODE, "VIEW"),
+  getOverdueCollections,
+);
+router.get(
+  "/overdue",
+  verifyToken,
+  checkPermission(MODULE_CODE, "VIEW"),
+  getOverdueCollections,
+);
+
+// Unified Collections Overview (must be before /:id)
+router.get(
+  "/collections",
+  verifyToken,
+  checkPermission(MODULE_CODE, "VIEW"),
+  getCollectionsOverview,
+);
+
+// Manually trigger daily interest accrual cron job (must be before /:id)
+router.post(
+  "/cron/run",
+  verifyToken,
+  checkPermission(MODULE_CODE, "EDIT"),
+  triggerAccrualCron,
+);
+
+// Manually generate next period for a loan immediately (must be before /:id)
+router.post(
+  "/generate/:loan_id",
+  verifyToken,
+  validateLoanIdParam,
+  checkPermission(MODULE_CODE, "EDIT"),
+  generateLoanPeriodManual,
+);
 
 // Trigger synchronization of due periods (must be before /:id)
 router.post(

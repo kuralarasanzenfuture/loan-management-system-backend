@@ -258,6 +258,29 @@
             "description": "Retrieves all interest collection periods for a specific loan."
           },
           "response": []
+        },
+        {
+          "name": "Generate Next Period Immediately (Manual / Admin API)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"force\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/{{loanId}}/generate-period",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "{{loanId}}", "generate-period"]
+            },
+            "description": "Secondary/manual mechanism for an administrator to generate the next interest period immediately without waiting for the daily cron. 100% idempotent: does not create duplicates if the cycle has already been generated."
+          },
+          "response": []
         }
       ]
     }

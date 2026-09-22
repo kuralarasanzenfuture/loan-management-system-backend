@@ -9,6 +9,7 @@ import {
   getInterestLoanSummary,
   updateInterestLoan,
   deleteInterestLoan,
+  generateLoanPeriod,
 } from "./interestLoan.controller.js";
 import {
   validateInterestLoanId,
@@ -73,6 +74,15 @@ router.put(
   validateInterestLoanId,
   checkPermission(MODULE_CODE, "EDIT"),
   updateInterestLoan,
+);
+
+// Manually generate next period for a loan immediately (Secondary / Admin API)
+router.post(
+  "/:id/generate-period",
+  verifyToken,
+  validateInterestLoanId,
+  checkPermission(MODULE_CODE, "EDIT"),
+  generateLoanPeriod,
 );
 
 // Delete interest loan (rejected if payments have been made)

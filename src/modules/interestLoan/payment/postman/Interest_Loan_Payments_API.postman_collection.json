@@ -1,0 +1,268 @@
+{
+  "info": {
+    "_postman_id": "f5193df8-86d1-4475-bce6-3e743a6d7131",
+    "name": "Interest Loan Payments & Allocations API",
+    "description": "Comprehensive Postman collection for Anytime Customer Interest Loan Payments & Allocations (Migrations 029 & 030). Features atomic FIFO interest-first allocation, partial principal reduction, automatic loan completion, allocation previewing, summary analytics, and atomic payment reversals.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_JWT_ACCESS_TOKEN",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "loanId",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "customerId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Preview Allocation",
+      "item": [
+        {
+          "name": "Preview Allocation (FIFO Breakdown)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": {{loanId}},\n  \"payment_amount\": 6000.00,\n  \"allocation_strategy\": \"auto\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments/preview",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments", "preview"]
+            },
+            "description": "Pre-computes and previews interest-first vs principal distribution before committing a payment."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Record Payments",
+      "item": [
+        {
+          "name": "Record Payment - Interest Only (UPI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.id) {",
+                  "        pm.collectionVariables.set('paymentId', json.data.id);",
+                  "        console.log('Saved paymentId:', json.data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": {{loanId}},\n  \"payment_amount\": 6000.00,\n  \"payment_mode\": \"upi\",\n  \"transaction_reference\": \"UPI/20260921/88776655\",\n  \"remarks\": \"September month interest settled in full via UPI\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments"]
+            },
+            "description": "Records payment and automatically prioritizes overdue/scheduled period interest."
+          }
+        },
+        {
+          "name": "Record Payment - Interest + Principal Reduction (Bank Transfer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": 3,\n  \"payment_amount\": 11000.00,\n  \"payment_mode\": \"bank\",\n  \"transaction_reference\": \"NEFT/20260921/776655\",\n  \"remarks\": \"Interest ₹1,000 cleared + ₹10,000 principal prepaid\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments"]
+            },
+            "description": "Clears period interest and applies remaining funds to outstanding principal."
+          }
+        },
+        {
+          "name": "Record Payment - Targeted Period (Cash)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loan_id\": 2,\n  \"payment_amount\": 6000.00,\n  \"interest_period_id\": 2,\n  \"payment_mode\": \"cash\",\n  \"remarks\": \"Targeted cash collection for period 1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments"]
+            },
+            "description": "Records collection directed towards a specific billing cycle period."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Query Payments & Receipts",
+      "item": [
+        {
+          "name": "Payment Portfolio Summary Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments", "summary"]
+            },
+            "description": "Aggregates total payments count, total principal collected, total interest collected, and payment mode breakdowns."
+          }
+        },
+        {
+          "name": "Get All Payments (Paginated & Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments?page=1&limit=10&sort_by=id&sort_order=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "id"
+                },
+                {
+                  "key": "sort_order",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "Lists payments across the organization with optional search and date filters."
+          }
+        },
+        {
+          "name": "Get Payment Receipt by ID (With Line Allocations)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments/{{paymentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments", "{{paymentId}}"]
+            },
+            "description": "Retrieves comprehensive payment receipt with snapshot balances and line-item allocations."
+          }
+        },
+        {
+          "name": "Get Payments by Loan ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments/loan/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments", "loan", "{{loanId}}"]
+            },
+            "description": "Retrieves full payment transaction history for a single loan."
+          }
+        },
+        {
+          "name": "Get Payments by Customer ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments/customer/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments", "customer", "{{customerId}}"]
+            },
+            "description": "Retrieves all payments made by a customer across all loans."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Reversals / Rollbacks",
+      "item": [
+        {
+          "name": "Reverse Payment (Atomic Rollback)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/interest-loans/payments/{{paymentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "interest-loans", "payments", "{{paymentId}}"]
+            },
+            "description": "Safely rolls back allocations, restores period statuses, restores loan balances, and transitions completed loans back to active."
+          }
+        }
+      ]
+    }
+  ]
+}

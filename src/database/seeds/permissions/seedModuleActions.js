@@ -425,10 +425,40 @@ const MODULE_ACTIONS_CONFIG = {
     },
   ],
 
+  MOD_ANYTIME_INTEREST_LOANS: [
+    ...STANDARD_CRUD_ACTIONS,
+    {
+      action_code: "PAY",
+      action_name: "Pay Interest",
+      description: "Make interest payment for loan customer",
+    },
+  ],
+  MOD_ANYTIME_INTEREST_LOAN_PAYMENTS: [
+    VIEW_ONLY_ACTION,
+    {
+      action_code: "PAY",
+      action_name: "Pay Interest",
+      description: "Make interest payment for loan customer",
+    },
+    {
+      action_code: "REFUND",
+      action_name: "Refund Payment",
+      description: "Refund interest payment",
+    },
+  ],
+
   // --- Collections ---
   MOD_LOAN_COLLECTIONS: VIEW_ONLY_ACTION,
   MOD_DUE_COLLECTIONS: VIEW_ONLY_ACTION,
   MOD_INTEREST_COLLECTIONS: [
+    ...VIEW_ONLY_ACTION,
+    {
+      action_code: "COLLECT",
+      action_name: "Collect Interest",
+      description: "Record interest payment collection",
+    },
+  ],
+  MOD_ANYTIME_INTEREST_COLLECTIONS: [
     ...VIEW_ONLY_ACTION,
     {
       action_code: "COLLECT",
@@ -472,6 +502,7 @@ const MODULE_ACTIONS_CONFIG = {
   MOD_REP_COLLECTIONS: VIEW_ONLY_ACTION,
   MOD_REP_CUSTOMERS: VIEW_ONLY_ACTION,
   MOD_REP_INTEREST_COLLECTIONS: VIEW_ONLY_ACTION,
+  MOD_ANYTIME_INTEREST_LOAN_REPORTS: VIEW_ONLY_ACTION,
 
   // --- System ---
   MOD_SETTINGS: [

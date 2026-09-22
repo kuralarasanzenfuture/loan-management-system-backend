@@ -16,6 +16,7 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uq_interest_period (loan_id, period_no),
+        UNIQUE KEY uq_interest_period_date (loan_id, scheduled_date),
         KEY idx_interest_period_loan (loan_id),
         KEY idx_interest_period_scheduled_date (scheduled_date),
         KEY idx_interest_period_status (status),

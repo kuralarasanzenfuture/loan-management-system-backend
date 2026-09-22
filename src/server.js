@@ -7,6 +7,7 @@ import { initDB } from "./config/db.js";
 import runMigrations from "./database/runMigrations.js";
 import runSeeds from "./database/runSeeds.js";
 import { getLocalIP } from "./utils/network.js";
+import { startInterestLoanCron } from "./modules/interestLoan/period/interestLoanPeriod.cron.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -26,6 +27,9 @@ const startServer = async() => {
             await runSeeds();
         }
         console.log("✅ DB seeded successfully");
+
+        // 🔥 STEP 2: Start Background Schedulers (Daily 12:05 AM Interest Accrual)
+        startInterestLoanCron();
 
         const server = http.createServer(app);
         // const HOST = "0.0.0.0";
