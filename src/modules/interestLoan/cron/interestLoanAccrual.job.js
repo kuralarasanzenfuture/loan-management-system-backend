@@ -1,17 +1,23 @@
 import dayjs from "dayjs";
+import os from "os";
 import { getDB } from "../../../config/db.js";
 import { InterestLoanAccrualService } from "./interestLoanAccrual.service.js";
 
 const JOB_NAME = "interest_loan_daily_accrual";
-const LOCK_KEY = "interest_loan_accrual_cron_lock";
-const BATCH_SIZE = 50;
+const ENV = process.env.NODE_ENV || "production";
+const LOCK_KEY = `interest_loan_accrual_cron_lock:${ENV}`;
+const BATCH_SIZE = parseInt(process.env.INTEREST_LOAN_BATCH_SIZE || "50", 10);
+const MAX_ERROR_LOG_ITEMS = 50; // Cap stored errors to prevent memory bloat
 
 export const InterestLoanAccrualJob = {
   /**
    * Primary Job Execution Entry Point
-   * Uses MySQL advisory distributed lock and keyset batch processing.
+   * - Environment-scoped MySQL advisory lock on a dedicated connection.
+   * - Keyset streaming batches with bounded memory proportional to BATCH_SIZE.
+   * - Periodic heartbeat updates.
+   * - Audit logging in cron_job_logs.
    */
-  async runDailyAccrualJob(targetDate = null) {
+  async runDailyAccrualJob(targetDate = null, options = {}) {
     const db = getDB();
     const lockConn = await db.getConnection();
     const today = targetDate
@@ -19,11 +25,13 @@ export const InterestLoanAccrualJob = {
       : dayjs().format("YYYY-MM-DD");
 
     const startTime = Date.now();
+    const hostname = os.hostname();
+    const pid = process.pid;
     let logId = null;
 
     try {
-      // 1. ACQUIRE DISTRIBUTED ADVISORY LOCK
-      // timeout = 0 returns immediately if another instance holds the lock
+      // 1. ACQUIRE ENVIRONMENT-SCOPED DISTRIBUTED ADVISORY LOCK
+      // timeout = 0 returns immediately if another instance/worker holds the lock
       const [lockResult] = await lockConn.query(
         "SELECT GET_LOCK(?, 0) AS lock_acquired",
         [LOCK_KEY]
@@ -32,18 +40,19 @@ export const InterestLoanAccrualJob = {
       const hasLock = Boolean(lockResult[0]?.lock_acquired);
       if (!hasLock) {
         console.warn(
-          `⚠️ [Interest Loan Job] Another instance is currently executing '${JOB_NAME}'. Skipping duplicate execution.`
+          `⚠️ [Interest Loan Job] Lock '${LOCK_KEY}' held by another worker. Skipping execution.`
         );
         return {
           skipped: true,
           reason: "LOCKED_BY_ANOTHER_INSTANCE",
           job_name: JOB_NAME,
+          environment: ENV,
           execution_date: today,
         };
       }
 
       console.log(
-        `\n🚀 [Interest Loan Job] Distributed lock acquired. Starting accrual job for date: ${today}...`
+        `\n🚀 [Interest Loan Job] Acquired lock '${LOCK_KEY}'. Starting accrual job for date: ${today} (PID: ${pid}, Host: ${hostname})...`
       );
 
       // 2. COUNT TOTAL ELIGIBLE LOANS
@@ -57,45 +66,52 @@ export const InterestLoanAccrualJob = {
       );
       const totalEligible = parseInt(countRows[0]?.total || 0, 10);
 
-      // 3. INSERT AUDIT LOG (status: 'running')
-      const [logInsert] = await db.query(
-        `INSERT INTO cron_job_logs (
-          job_name, execution_date, start_time, status, total_eligible
-        ) VALUES (?, ?, NOW(), 'running', ?)`,
-        [JOB_NAME, today, totalEligible]
-      );
-      logId = logInsert.insertId;
+      // 3. INSERT AUDIT LOG ENTRY (status: 'RUNNING', with heartbeat)
+      try {
+        const [logInsert] = await db.query(
+          `INSERT INTO cron_job_logs (
+            job_name, environment, execution_date, start_time, heartbeat_at,
+            hostname, pid, status, total_eligible
+          ) VALUES (?, ?, ?, NOW(), NOW(), ?, ?, 'RUNNING', ?)`,
+          [JOB_NAME, ENV, today, hostname, pid, totalEligible]
+        );
+        logId = logInsert.insertId;
+      } catch (logErr) {
+        console.error(
+          "⚠️ [Interest Loan Job] Failed to write initial cron_job_logs entry:",
+          logErr.message
+        );
+      }
 
       console.log(
-        `📊 [Interest Loan Job] Found ${totalEligible} eligible loan(s). Processing in batches of ${BATCH_SIZE}...`
+        `📊 [Interest Loan Job] Found ${totalEligible} eligible loan(s). Processing in keyset batches of ${BATCH_SIZE}...`
       );
 
-      const summary = {
-        job_id: logId,
-        execution_date: today,
-        total_eligible: totalEligible,
-        processed_count: 0,
-        periods_generated: 0,
-        failed_count: 0,
-        successful_loans: [],
-        errors: [],
-      };
+      // 4. MEMORY-BOUNDED AGGREGATE COUNTERS
+      let processedCount = 0;
+      let periodsGenerated = 0;
+      let failedCount = 0;
+      let circuitBreakerTrips = 0;
+      const errors = [];
 
-      // 4. KEYSETTED BATCH LOOP (id > lastSeenId)
+      // 5. KEYSETTED BATCH LOOP (id > lastSeenId)
       let lastId = 0;
       let hasMore = true;
+      let batchIndex = 0;
 
       while (hasMore) {
+        batchIndex++;
+        // Use keyset index (status, id, next_interest_date) to guarantee sequential scan without filesort
         const [batch] = await db.query(
           `SELECT id, loan_no, next_interest_date 
-           FROM interest_loans 
+           FROM interest_loans FORCE INDEX (idx_interest_loan_keyset_v2)
            WHERE status = 'active' 
+             AND id > ?
              AND next_interest_date IS NOT NULL 
              AND next_interest_date <= ? 
-             AND id > ?
            ORDER BY id ASC 
            LIMIT ?`,
-          [today, lastId, BATCH_SIZE]
+          [lastId, today, BATCH_SIZE]
         );
 
         if (!batch.length) {
@@ -103,34 +119,31 @@ export const InterestLoanAccrualJob = {
           break;
         }
 
+        // Process loans sequentially in isolated transactions
         for (const item of batch) {
           try {
             const result = await InterestLoanAccrualService.processSingleLoanAccrual(
               item.id,
-              today
+              today,
+              { jobId: logId, requestId: options.requestId }
             );
 
-            summary.processed_count++;
-            summary.periods_generated += result.periods_generated || 0;
-            summary.successful_loans.push({
-              loan_id: result.loan_id,
-              loan_no: result.loan_no,
-              periods_generated: result.periods_generated,
-              next_interest_date: result.next_interest_date,
-            });
-
-            console.log(
-              `  ✓ Loan ${item.loan_no}: generated ${result.periods_generated || 0} period(s), next: ${result.next_interest_date}`
-            );
+            processedCount++;
+            periodsGenerated += result.periods_generated || 0;
+            if (result.circuit_breaker_tripped) {
+              circuitBreakerTrips++;
+            }
           } catch (loanErr) {
-            summary.failed_count++;
-            summary.errors.push({
-              loan_id: item.id,
-              loan_no: item.loan_no,
-              error: loanErr.message || String(loanErr),
-            });
+            failedCount++;
+            if (errors.length < MAX_ERROR_LOG_ITEMS) {
+              errors.push({
+                loan_id: item.id,
+                loan_no: item.loan_no,
+                error: loanErr.message || String(loanErr),
+              });
+            }
             console.error(
-              `  ❌ Loan ${item.loan_no} error: ${loanErr.message}`
+              `  ❌ Loan ${item.loan_no} processing failure: ${loanErr.message}`
             );
           }
         }
@@ -139,87 +152,144 @@ export const InterestLoanAccrualJob = {
         if (batch.length < BATCH_SIZE) {
           hasMore = false;
         }
+
+        // 6. UPDATE HEARTBEAT (Every batch)
+        if (logId) {
+          try {
+            await db.query(
+              `UPDATE cron_job_logs 
+               SET heartbeat_at = NOW(),
+                   processed_count = ?,
+                   periods_generated = ?,
+                   failed_count = ?
+               WHERE id = ?`,
+              [processedCount, periodsGenerated, failedCount, logId]
+            );
+          } catch (hbErr) {
+            console.warn("Heartbeat update warning:", hbErr.message);
+          }
+        }
       }
 
-      // 5. DETERMINE FINAL STATUS AND RECORD METRICS
+      // 7. DETERMINE FINAL STATUS AND RECORD METRICS
       const durationMs = Date.now() - startTime;
-      let finalStatus = "success";
-      if (summary.failed_count > 0 && summary.processed_count > 0) {
-        finalStatus = "partial";
-      } else if (summary.failed_count > 0 && summary.processed_count === 0) {
-        finalStatus = "failed";
+      let finalStatus = "SUCCESS";
+      if (failedCount > 0 && processedCount > 0) {
+        finalStatus = "PARTIAL";
+      } else if (failedCount > 0 && processedCount === 0) {
+        finalStatus = "FAILED";
       }
 
-      await db.query(
-        `UPDATE cron_job_logs 
-         SET end_time = NOW(),
-             duration_ms = ?,
-             status = ?,
-             processed_count = ?,
-             periods_generated = ?,
-             failed_count = ?,
-             error_details = ?,
-             summary = ?
-         WHERE id = ?`,
-        [
-          durationMs,
-          finalStatus,
-          summary.processed_count,
-          summary.periods_generated,
-          summary.failed_count,
-          summary.errors.length ? JSON.stringify(summary.errors) : null,
-          JSON.stringify({
-            total_eligible: summary.total_eligible,
-            processed: summary.processed_count,
-            periods: summary.periods_generated,
-            duration_ms: durationMs,
-          }),
-          logId,
-        ]
-      );
+      if (logId) {
+        try {
+          await db.query(
+            `UPDATE cron_job_logs 
+             SET end_time = NOW(),
+                 duration_ms = ?,
+                 status = ?,
+                 processed_count = ?,
+                 periods_generated = ?,
+                 failed_count = ?,
+                 error_details = ?,
+                 summary = ?
+             WHERE id = ?`,
+            [
+              durationMs,
+              finalStatus,
+              processedCount,
+              periodsGenerated,
+              failedCount,
+              errors.length ? JSON.stringify(errors) : null,
+              JSON.stringify({
+                total_eligible: totalEligible,
+                processed: processedCount,
+                periods_generated: periodsGenerated,
+                failed: failedCount,
+                circuit_breaker_trips: circuitBreakerTrips,
+                duration_ms: durationMs,
+                batches: batchIndex,
+              }),
+              logId,
+            ]
+          );
+        } catch (updateErr) {
+          console.error(
+            "⚠️ Failed to update final cron_job_logs entry:",
+            updateErr.message
+          );
+        }
+      }
 
       console.log(
-        `✅ [Interest Loan Job] Completed in ${durationMs}ms: ${summary.processed_count} processed, ${summary.periods_generated} periods, ${summary.failed_count} errors. Status: ${finalStatus}.\n`
+        `✅ [Interest Loan Job] Execution completed in ${durationMs}ms: ${processedCount} processed, ${periodsGenerated} periods, ${failedCount} errors, ${circuitBreakerTrips} circuit breaker trips. Status: ${finalStatus}.\n`
       );
 
       return {
-        ...summary,
+        job_id: logId,
+        environment: ENV,
+        execution_date: today,
+        total_eligible: totalEligible,
+        processed_count: processedCount,
+        periods_generated: periodsGenerated,
+        failed_count: failedCount,
+        circuit_breaker_trips: circuitBreakerTrips,
         status: finalStatus,
         duration_ms: durationMs,
       };
     } catch (fatalErr) {
       const durationMs = Date.now() - startTime;
       console.error(
-        `💥 [Interest Loan Job] Fatal error during execution:`,
+        `💥 [Interest Loan Job] Fatal exception in job execution:`,
         fatalErr.message
       );
 
       if (logId) {
-        await db.query(
-          `UPDATE cron_job_logs 
-           SET end_time = NOW(),
-               duration_ms = ?,
-               status = 'failed',
-               error_details = ?
-           WHERE id = ?`,
-          [durationMs, JSON.stringify({ fatal: fatalErr.message }), logId]
-        );
+        try {
+          await db.query(
+            `UPDATE cron_job_logs 
+             SET end_time = NOW(),
+                 duration_ms = ?,
+                 status = 'FAILED',
+                 error_details = ?
+             WHERE id = ?`,
+            [durationMs, JSON.stringify({ fatal: fatalErr.message }), logId]
+          );
+        } catch (err) {
+          // ignore secondary logging failure
+        }
       }
 
       throw fatalErr;
     } finally {
-      // 6. ALWAYS RELEASE DISTRIBUTED LOCK
+      // 8. ALWAYS RELEASE DISTRIBUTED ADVISORY LOCK
       try {
         await lockConn.query("SELECT RELEASE_LOCK(?)", [LOCK_KEY]);
       } catch (relErr) {
-        console.error("Failed releasing lock:", relErr.message);
+        console.error("Failed releasing distributed lock:", relErr.message);
       }
       lockConn.release();
     }
   },
 
   /**
-   * Get latest execution record for health checks and monitoring
+   * Stale Job Watchdog: Detects and marks stuck jobs where heartbeat stopped updating
+   */
+  async detectAndMarkStaleJobs(staleThresholdMinutes = 15) {
+    const db = getDB();
+    const [result] = await db.query(
+      `UPDATE cron_job_logs 
+       SET status = 'STALE',
+           error_details = JSON_OBJECT('reason', 'Heartbeat timeout. Process likely crashed or terminated.')
+       WHERE job_name = ? 
+         AND status = 'RUNNING' 
+         AND heartbeat_at < NOW() - INTERVAL ? MINUTE`,
+      [JOB_NAME, parseInt(staleThresholdMinutes, 10)]
+    );
+    return result.affectedRows;
+  },
+
+  /**
+   * Health Check: Get latest execution log
    */
   async getLatestExecution() {
     const db = getDB();
@@ -234,7 +304,7 @@ export const InterestLoanAccrualJob = {
   },
 
   /**
-   * Get paginated logs for admin monitoring table
+   * Paginated audit logs for admin visibility
    */
   async getExecutionLogs(limit = 20, offset = 0) {
     const db = getDB();

@@ -1,0 +1,6 @@
+ALTER TABLE cron_job_logs 
+    ADD COLUMN environment VARCHAR(50) NOT NULL DEFAULT 'production' AFTER job_name,
+    ADD COLUMN heartbeat_at DATETIME NULL AFTER start_time,
+    ADD COLUMN hostname VARCHAR(100) NULL AFTER heartbeat_at,
+    ADD COLUMN pid INT NULL AFTER hostname,
+    MODIFY COLUMN status ENUM('STARTING', 'RUNNING', 'SUCCESS', 'PARTIAL', 'FAILED', 'ABORTED', 'STALE') NOT NULL DEFAULT 'RUNNING';

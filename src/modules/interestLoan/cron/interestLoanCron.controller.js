@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import { InterestLoanAccrualJob } from "./interestLoanAccrual.job.js";
+import { InterestLoanReconciliationService } from "../reconciliation/interestLoanReconciliation.service.js";
 
 export const InterestLoanCronController = {
   /**
@@ -16,7 +17,10 @@ export const InterestLoanCronController = {
         });
       }
 
-      const result = await InterestLoanAccrualJob.runDailyAccrualJob(targetDate);
+      const result = await InterestLoanAccrualJob.runDailyAccrualJob(targetDate, {
+        requestId: req.headers["x-request-id"] || null,
+      });
+
       return res.status(200).json({
         success: true,
         message: result.skipped
@@ -28,6 +32,105 @@ export const InterestLoanCronController = {
       return res.status(500).json({
         success: false,
         message: "Failed executing interest accrual cron",
+        error: error.message,
+      });
+    }
+  },
+
+  /**
+   * POST /api/interest-loans/cron/reconcile
+   * Trigger manual reconciliation run
+   */
+  async triggerReconciliation(req, res) {
+    try {
+      const targetDate = req.body.target_date || req.query.target_date || null;
+      const loanId = req.body.loan_id ? parseInt(req.body.loan_id, 10) : null;
+
+      if (targetDate && !dayjs(targetDate, "YYYY-MM-DD", true).isValid()) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid target_date format. Please use YYYY-MM-DD.",
+        });
+      }
+
+      const result = await InterestLoanReconciliationService.runReconciliation({
+        targetDate,
+        loanId,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Financial reconciliation completed successfully",
+        data: result,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed executing financial reconciliation",
+        error: error.message,
+      });
+    }
+  },
+
+  /**
+   * GET /api/interest-loans/cron/reconcile/reports
+   * List reconciliation reports
+   */
+  async getReconciliationReports(req, res) {
+    try {
+      const limit = Math.max(1, parseInt(req.query.limit, 10) || 20);
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const offset = (page - 1) * limit;
+
+      const { reports, total } = await InterestLoanReconciliationService.getReports(
+        limit,
+        offset
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: reports,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit) || 1,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed retrieving reconciliation reports",
+        error: error.message,
+      });
+    }
+  },
+
+  /**
+   * GET /api/interest-loans/cron/reconcile/reports/:id/discrepancies
+   * List discrepancies for a specific report
+   */
+  async getReportDiscrepancies(req, res) {
+    try {
+      const reportId = parseInt(req.params.id, 10);
+      if (!reportId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid report ID",
+        });
+      }
+
+      const discrepancies =
+        await InterestLoanReconciliationService.getDiscrepanciesByReportId(reportId);
+
+      return res.status(200).json({
+        success: true,
+        data: discrepancies,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed retrieving report discrepancies",
         error: error.message,
       });
     }
@@ -54,9 +157,9 @@ export const InterestLoanCronController = {
           ran_today: ranToday,
           latest_execution: latest,
           health_status:
-            !latest || latest.status === "failed"
+            !latest || latest.status === "FAILED"
               ? "CRITICAL"
-              : latest.status === "partial"
+              : latest.status === "PARTIAL"
               ? "WARNING"
               : "HEALTHY",
         },
