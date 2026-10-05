@@ -16,19 +16,7 @@ export const seedRoles = async () => {
       "System Administrator with full management access",
       "active",
       true,
-    ],
-    [
-      "MANAGER",
-      "Operations manager with loan and collection access",
-      "active",
-      true,
-    ],
-    [
-      "COLLECTION_AGENT",
-      "Field collection agent with payment collection access",
-      "active",
-      true,
-    ],
+    ]
   ];
 
   try {

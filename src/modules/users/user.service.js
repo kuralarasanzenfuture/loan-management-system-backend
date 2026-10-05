@@ -14,13 +14,20 @@ export const UserService = {
     // 🔥 Normalize username & email to lowercase so that
     // "John" and "john" are always treated as the same value.
     const username = data.username.toLowerCase();
-    const email = data.email.toLowerCase();
+    const email = data.email && data.email.trim() ? data.email.trim().toLowerCase() : null;
+    const mobile = data.mobile ? String(data.mobile).trim() : null;
 
     const existing = await UserModel.findByUsername(username);
     if (existing) throw { status: 400, message: "Username exists" };
 
-    const existingEmail = await UserModel.findByEmail(email);
-    if (existingEmail) throw { status: 400, message: "Email already exists" };
+    if (email) {
+      const existingEmail = await UserModel.findByEmail(email);
+      if (existingEmail) throw { status: 400, message: "Email already exists" };
+    }
+    if (mobile) {
+      const existingMobile = await UserModel.findByMobile(mobile);
+      if (existingMobile) throw { status: 400, message: "Mobile already exists" };
+    }
 
     const hash = await bcrypt.hash(data.password, 10);
 
@@ -31,7 +38,7 @@ export const UserService = {
       password_hash: hash,
     });
 
-    return { id, username, email };
+    return { id, username, email, mobile, role_id: data.role_id, status: data.status || "active" };
   },
 
   // async login(data, req, res) {
@@ -438,6 +445,17 @@ export const UserService = {
       }
     }
 
+    // 🔥 Hash password if updated, otherwise do not overwrite password_hash
+    if (data.password && data.password.trim()) {
+      data.password_hash = await bcrypt.hash(data.password, 10);
+    }
+    delete data.password;
+
+    // Clean joined/extra fields
+    delete data.is_system;
+    delete data.is_system_role;
+    delete data.role_name;
+
     await UserModel.update(id, data);
 
     return { message: "User updated successfully" };
@@ -451,6 +469,17 @@ export const UserService = {
 
     if (!user) {
       throw { status: 404, message: "User not found" };
+    }
+
+    const isSystemRoleUser =
+      Boolean(user.is_system) ||
+      Boolean(user.is_system_role) ||
+      user.is_system_role === 1 ||
+      ["SUPER_ADMIN", "ADMIN"].includes(user.role_name?.trim().toUpperCase()) ||
+      ["superadmin", "admin"].includes(user.username?.trim().toLowerCase());
+
+    if (isSystemRoleUser) {
+      throw { status: 403, message: "System role user cannot be deleted" };
     }
 
     await UserModel.delete(id);

@@ -4,14 +4,15 @@ export const UserModel = {
   async create(user) {
     const db = getDB();
     const [res] = await db.query(
-      `INSERT INTO users (username,password_hash,email,mobile,role_id)
-       VALUES (?,?,?,?,?)`,
+      `INSERT INTO users (username,password_hash,email,mobile,role_id,status)
+       VALUES (?,?,?,?,?,?)`,
       [
         user.username,
         user.password_hash,
-        user.email,
-        user.mobile,
+        user.email || null,
+        user.mobile || null,
         user.role_id,
+        user.status || "active",
       ],
     );
     return res.insertId;
@@ -46,7 +47,9 @@ export const UserModel = {
         u.created_at,
         u.updated_at,
         u.role_id,
-        r.name AS role_name
+        r.name AS role_name,
+        r.is_system AS is_system_role,
+        r.is_system
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
       ORDER BY u.id DESC
@@ -65,7 +68,9 @@ export const UserModel = {
       `
       SELECT 
         u.*,
-        r.name AS role_name
+        r.name AS role_name,
+        r.is_system AS is_system_role,
+        r.is_system
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
       WHERE u.id = ?
@@ -170,8 +175,10 @@ export const UserModel = {
       u.status,
       u.last_login,
       u.created_at,
-      r.name AS role_name
-    FROM users u
+      r.name AS role_name,
+        r.is_system AS is_system_role,
+        r.is_system
+      FROM users u
     LEFT JOIN roles r ON u.role_id = r.id
     WHERE u.id = ?
     `,
